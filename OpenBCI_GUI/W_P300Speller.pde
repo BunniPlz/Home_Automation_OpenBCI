@@ -15,6 +15,7 @@ class W_P300Speller extends Widget {
   //to see all core variables/methods of the Widget class, refer to Widget.pde
   //put your custom variables here...
   //Button widgetTemplateButton;
+  Button button_StartSpeller;
   
   private final int MAX_ROW = 4;
   private final int MAX_COLUMN = 4;
@@ -22,7 +23,7 @@ class W_P300Speller extends Widget {
   private int randrow = 0;
   private int randcol = 0;
   
-  private boolean spellerStarted = true;
+  private boolean spellerStarted = false;
   
   char[] characters = {'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'}; 
 
@@ -41,6 +42,9 @@ class W_P300Speller extends Widget {
     widgetTemplateButton.setFont(p4, 14);
     widgetTemplateButton.setURL("http://docs.openbci.com/Tutorials/15-Custom_Widgets");
     */
+    button_StartSpeller = new Button(x + 10, y + 10, 200,  navH, "Start Speller", 12);
+    button_StartSpeller.setFont(p4, 14);
+    
   }
 
   void update(){
@@ -57,6 +61,7 @@ class W_P300Speller extends Widget {
     pushStyle();
 
     //widgetTemplateButton.draw();
+    
     // START -- Drawing character boxes
     //ROW (x axis) in this case are the columns of previous code
     //COLUMN (y axis) in this case are the rows of previous code
@@ -106,22 +111,22 @@ class W_P300Speller extends Widget {
           text(characters[(j+(i*(MAX_ROW-1)))], xpos + charXOffset, ypos + charYOffset);  // writes the character 
           //System.out.printf("Index: %d - Char: %c - Row: %d - Col: %d \n", j+(i*MAX_ROW), characters[(j+(i*MAX_ROW))], i, j);
         }
-    }
-      //line(0,(h/MAX_ROW)*(i), w, (h/MAX_ROW)*(i));
-      //println("line " + i + " with (x1,y1) equal to (" + 0 + "," + h/MAX_ROW + ")" + " with (x2,y2) equal to (" + w + "," + h/MAX_ROW + ")" );
-    }
-      delay(1000);
-      if(spellerStarted);
-        runcount++;
-      // END -- Drawing character boxes
+      }  // end column loop
+    }  // end row loop
     
-
+    if(spellerStarted) {
+      delay(1000);
+      runcount++;
+    }
+      
+    // END -- Drawing character boxes
+    
+    button_StartSpeller.draw();
     popStyle();
 
   }
   
   void resetSpeller() {
-    spellerStarted = false; 
     runcount = 0;
   }
 
@@ -143,6 +148,18 @@ class W_P300Speller extends Widget {
       widgetTemplateButton.setIsActive(true);
     }
     */
+    if(button_StartSpeller.isMouseHere()) {
+      if(!spellerStarted) {
+        spellerStarted = true;
+        resetSpeller();
+        button_StartSpeller.setString("Stop Speller");
+        stopButtonWasPressed();
+      } else {
+        spellerStarted = false;
+        button_StartSpeller.setString("Start Speller");
+        stopButtonWasPressed();
+      }
+    }
 
   }
 
