@@ -17,11 +17,13 @@ class W_P300Speller extends Widget {
   //Button widgetTemplateButton;
   Button button_StartSpeller;
   
-  private final int MAX_ROW = 4;
-  private final int MAX_COLUMN = 4;
+  private final int MAX_ROW = 5;
+  private final int MAX_COLUMN = 5;
   private int runcount = 0;
   private int randrow = 0;
   private int randcol = 0;
+  
+  private int maxRunCount = 60;  // temp magic number
   
   private boolean spellerStarted = false;
   
@@ -65,19 +67,7 @@ class W_P300Speller extends Widget {
     // START -- Drawing character boxes
     //ROW (x axis) in this case are the columns of previous code
     //COLUMN (y axis) in this case are the rows of previous code
-    if (spellerStarted && runcount > 0) { //In the case this is not first runtime, get random ints.
-      /*
-      switch (runcount % 2) { //If runcount is odd, we'll say it's a column, if even, row
-        case 0:
-          randrow = int(random(float(MAX_ROW)));
-          println("Randrow is equal to " + randrow);
-          break;
-        case 1:
-          randcol = int(random(float(MAX_COLUMN)));
-          println("Randcol is equal to " + randcol);
-          break;
-      }
-      */
+    if (spellerStarted && runcount > 0 && runcount <= maxRunCount) { //In the case this is not first runtime, get random ints.
       randrow = int(random(float(MAX_ROW)));
       //println("Randrow is equal to " + randrow);
       randcol = int(random(float(MAX_COLUMN)));
@@ -90,14 +80,14 @@ class W_P300Speller extends Widget {
       float ypos = (h/MAX_ROW)*i;
       for (int j = 0; j < MAX_COLUMN; j++) { //y value
         float xpos = (w/MAX_COLUMN)*j;
-        if (runcount == 0){ //If first runtime, this is a special case. Display all characters
+        if (runcount == 0 || !spellerStarted){ //If first runtime, this is a special case. Display all characters
           fill(0f);
           stroke(255f);
           rect(xpos, ypos, (w/MAX_COLUMN), (h/MAX_ROW));
           textSize(32);
           fill(255f, 255f, 255f);
           text(characters[(j+(i*(MAX_ROW-1)))], xpos + charXOffset, ypos + charYOffset);
-        } else { //If any other runtime
+        } else if (runcount > 0 && runcount <= maxRunCount) { //If any other run time between 0 and max runcount
           if(randrow == i || randcol == j) {  
             // if current rectangle's row is the randomly selected row, or if the column is the selected column
             fill(105f);  // set rect fill color to grey(lit)
@@ -110,6 +100,8 @@ class W_P300Speller extends Widget {
           fill(255f, 255f, 255f);  // text color white
           text(characters[(j+(i*(MAX_ROW-1)))], xpos + charXOffset, ypos + charYOffset);  // writes the character 
           //System.out.printf("Index: %d - Char: %c - Row: %d - Col: %d \n", j+(i*MAX_ROW), characters[(j+(i*MAX_ROW))], i, j);
+        } else {
+          toggleSpeller();
         }
       }  // end column loop
     }  // end row loop
@@ -149,18 +141,22 @@ class W_P300Speller extends Widget {
     }
     */
     if(button_StartSpeller.isMouseHere()) {
-      if(!spellerStarted) {
-        spellerStarted = true;
-        resetSpeller();
-        button_StartSpeller.setString("Stop Speller");
-        stopButtonWasPressed();
-      } else {
-        spellerStarted = false;
-        button_StartSpeller.setString("Start Speller");
-        stopButtonWasPressed();
-      }
+      toggleSpeller();
     }
 
+  }
+  
+  void toggleSpeller() {
+    if(!spellerStarted) {
+      spellerStarted = true;
+      resetSpeller();
+      button_StartSpeller.setString("Stop Speller");
+      stopButtonWasPressed();
+    } else {
+      spellerStarted = false;
+      button_StartSpeller.setString("Start Speller");
+      stopButtonWasPressed();
+    }
   }
 
   void mouseReleased(){
