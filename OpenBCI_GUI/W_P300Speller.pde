@@ -10,6 +10,12 @@
 //
 ///////////////////////////////////////////////////,
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.lang.StringBuilder;
+
 class W_P300Speller extends Widget {
 
   //to see all core variables/methods of the Widget class, refer to Widget.pde
@@ -23,9 +29,19 @@ class W_P300Speller extends Widget {
   private int randrow = 0;
   private int randcol = 0;
   
+  private int targetLetterIndex = 0;
+  private int targetLetterHitCount = 0;
+  private int targetLetterRow = 0;
+  private int targetLetterColumn = 0;
+  
   private int maxRunCount = 60;  // temp magic number
+  private int maxHitCount = 10;  // temp magic number
+  private int stimuliDelay = 500; // millisecond delay between switching row and columns
+  private String fileString = "C:\\Users\\the0r\\Documents\\School\\CSUF\\EGCP598 BCI LAB\\Home_Automation_OpenBCI\\OpenBCI_GUI\\SavedData";
   
   private boolean spellerStarted = false;
+  
+  private StringBuilder stimuliRecord;
   
   char[] characters = {'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'}; 
 
@@ -35,9 +51,9 @@ class W_P300Speller extends Widget {
     //This is the protocol for setting up dropdowns.
     //Note that these 3 dropdowns correspond to the 3 global functions below
     //You just need to make sure the "id" (the 1st String) has the same name as the corresponding function
-    addDropdown("Dropdown1", "Drop 1", Arrays.asList("A", "B"), 0);
-    addDropdown("Dropdown2", "Drop 2", Arrays.asList("C", "D", "E"), 1);
-    addDropdown("Dropdown3", "Drop 3", Arrays.asList("F", "G", "H", "I"), 3);
+    //addDropdown("Dropdown1", "Drop 1", Arrays.asList("A", "B"), 0);
+    //addDropdown("Dropdown2", "Drop 2", Arrays.asList("C", "D", "E"), 1);
+    //addDropdown("Dropdown3", "Drop 3", Arrays.asList("F", "G", "H", "I"), 3);
 
     /*
     widgetTemplateButton = new Button (x + w/2, y + h/2, 200, navHeight, "Design Your Own Widget!", 12);
@@ -46,6 +62,12 @@ class W_P300Speller extends Widget {
     */
     button_StartSpeller = new Button(x + 10, y + 10, 200,  navH, "Start Speller", 12);
     button_StartSpeller.setFont(p4, 14);
+    
+    stimuliRecord = new StringBuilder();
+    randomizeTargetLetter();
+    stimuliRecord.append("Target Character: ").append(characters[targetLetterIndex]).append(System.getProperty("line.separator"));
+    stimuliRecord.append("Stimuli Delay: ").append(stimuliDelay).append(System.getProperty("line.separator"));
+    stimuliRecord.append("Row,Col").append(System.getProperty("line.separator"));
     
   }
 
@@ -67,39 +89,60 @@ class W_P300Speller extends Widget {
     // START -- Drawing character boxes
     //ROW (x axis) in this case are the columns of previous code
     //COLUMN (y axis) in this case are the rows of previous code
-    if (spellerStarted && runcount > 0 && runcount <= maxRunCount) { //In the case this is not first runtime, get random ints.
-      randrow = int(random(float(MAX_ROW)));
-      //println("Randrow is equal to " + randrow);
-      randcol = int(random(float(MAX_COLUMN)));
-      //println("Randcol is equal to " + randcol);
+    if (spellerStarted && runcount > 0 && targetLetterHitCount < maxHitCount) { //In the case this is not first runtime, get random ints.
+      if(floor(random(0,10)) == 1) {  // 1/10 chance of guaranteeing/forcing target hit
+        randrow = targetLetterRow;
+        randcol = targetLetterColumn;
+      } else {
+        randrow = int(random(MAX_ROW));
+        //println("Randrow is equal to " + randrow);
+        randcol = int(random(MAX_COLUMN));
+        //println("Randcol is equal to " + randcol);
+      }
+      
+      stimuliRecord.append(randrow).append(",").append(randcol).append(System.getProperty("line.separator"));
+      
     }
     float charXOffset, charYOffset;
     charXOffset = (w/MAX_COLUMN) / 2;
     charYOffset = (h/MAX_ROW) / 2;
-    for (int i = 0; i < MAX_ROW; i++) { //x value
+    for (int i = 0; i < MAX_ROW; i++) { //y value
       float ypos = (h/MAX_ROW)*i;
-      for (int j = 0; j < MAX_COLUMN; j++) { //y value
+      for (int j = 0; j < MAX_COLUMN; j++) { //x value
         float xpos = (w/MAX_COLUMN)*j;
         if (runcount == 0 || !spellerStarted){ //If first runtime, this is a special case. Display all characters
           fill(0f);
+          if(j+(i*(MAX_ROW)) == targetLetterIndex) {  // color the target letter blue
+            fill(0f, 0f, 255f);
+          }
           stroke(255f);
           rect(xpos, ypos, (w/MAX_COLUMN), (h/MAX_ROW));
           textSize(32);
           fill(255f, 255f, 255f);
-          text(characters[(j+(i*(MAX_ROW-1)))], xpos + charXOffset, ypos + charYOffset);
-        } else if (runcount > 0 && runcount <= maxRunCount) { //If any other run time between 0 and max runcount
+          text(characters[(j+(i*(MAX_ROW)))], xpos + charXOffset, ypos + charYOffset);
+        } else if (runcount > 0 && targetLetterHitCount < maxHitCount) { //If any other run time between 0 and max runcount
           if(randrow == i || randcol == j) {  
             // if current rectangle's row is the randomly selected row, or if the column is the selected column
             fill(105f);  // set rect fill color to grey(lit)
           } else {
             fill(0f);  // otherwise set the fill color to black
           }
+          
+          if(randrow == i && randcol == j) {  
+            fill(105f, 105f, 105f);  // grey if not the target letter
+            if (j+(i*(MAX_COLUMN)) == targetLetterIndex) {
+              fill(0f, 0f, 255f);  // blue if target letter
+              targetLetterHitCount++; // increment times target letter has been highlighted in the intersection
+              System.out.printf("Target Letter Hit Count: %d. Index: %d - Char: %c - Row: %d - Col: %d \n", targetLetterHitCount, j+(i*MAX_ROW), characters[(j+(i*MAX_COLUMN))], i, j);
+            }
+          }
+
           stroke(255f);  // rectangle border color
-          rect(xpos, ypos, (w/MAX_COLUMN), (h/MAX_ROW));  // draw rectangle
+          rect(xpos, ypos, (w/MAX_COLUMN), (h/MAX_COLUMN));  // draw rectangle
           textSize(32);  // set text size
           fill(255f, 255f, 255f);  // text color white
-          text(characters[(j+(i*(MAX_ROW-1)))], xpos + charXOffset, ypos + charYOffset);  // writes the character 
-          //System.out.printf("Index: %d - Char: %c - Row: %d - Col: %d \n", j+(i*MAX_ROW), characters[(j+(i*MAX_ROW))], i, j);
+          text(characters[(j+(i*(MAX_COLUMN)))], xpos + charXOffset, ypos + charYOffset);  // writes the character 
+          //System.out.printf("Index: %d - Char: %c - Row: %d - Col: %d \n", j+(i*MAX_ROW), characters[(j+(i*MAX_COLUMN))], i, j);
         } else {
           toggleSpeller();
         }
@@ -107,7 +150,7 @@ class W_P300Speller extends Widget {
     }  // end row loop
     
     if(spellerStarted) {
-      delay(1000);
+      delay(stimuliDelay);
       runcount++;
     }
       
@@ -120,6 +163,15 @@ class W_P300Speller extends Widget {
   
   void resetSpeller() {
     runcount = 0;
+    targetLetterHitCount = 0;
+    randomizeTargetLetter();
+  }
+  
+  void randomizeTargetLetter() {
+    targetLetterRow = int(random(MAX_ROW));
+    targetLetterColumn = int(random(MAX_COLUMN));
+    targetLetterIndex = targetLetterColumn+(targetLetterRow*MAX_COLUMN);
+    System.out.printf("Target letter: %c - Index: %d - Row,Column: %d, %d\n", characters[targetLetterIndex], targetLetterIndex, targetLetterRow, targetLetterColumn); 
   }
 
   void screenResized(){
@@ -149,11 +201,11 @@ class W_P300Speller extends Widget {
   void toggleSpeller() {
     if(!spellerStarted) {
       spellerStarted = true;
-      resetSpeller();
       button_StartSpeller.setString("Stop Speller");
       stopButtonWasPressed();
     } else {
       spellerStarted = false;
+      resetSpeller();
       button_StartSpeller.setString("Start Speller");
       stopButtonWasPressed();
     }
@@ -173,12 +225,32 @@ class W_P300Speller extends Widget {
   }
 
   //add custom functions here
-  void customFunction(){
-    //this is a fake function... replace it with something relevant to this widget
-
+  void dumpStimuliRecord(){
+    // dump stimuli record to file
+    if(runcount > 0) {
+      try {
+        BufferedWriter bwr = new BufferedWriter(new FileWriter(new File(fileString)));
+        bwr.append(stimuliRecord);
+        bwr.flush();
+        bwr.close();
+      } catch(IOException e) {
+        e.printStackTrace();
+      }
+    }
   }
 
 };
+
+void printToFile(StringBuilder sb, String fileString) throws IOException {
+  try {
+    BufferedWriter bwr = new BufferedWriter(new FileWriter(new File(fileString)));
+    bwr.append(sb);
+    bwr.flush();
+    bwr.close();
+  } catch(IOException e) {
+    e.printStackTrace();
+  }
+}
 
 /*
 //These functions need to be global! These functions are activated when an item from the corresponding dropdown is selected
