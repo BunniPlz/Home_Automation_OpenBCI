@@ -10,12 +10,6 @@
 //
 ///////////////////////////////////////////////////,
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.lang.StringBuilder;
-
 class W_P300Speller extends Widget {
 
   //to see all core variables/methods of the Widget class, refer to Widget.pde
@@ -37,7 +31,7 @@ class W_P300Speller extends Widget {
   private int maxRunCount = 60;  // temp magic number
   private int maxHitCount = 10;  // temp magic number
   private int stimuliDelay = 500; // millisecond delay between switching row and columns
-  private String fileString = "C:\\Users\\the0r\\Documents\\School\\CSUF\\EGCP598 BCI LAB\\Home_Automation_OpenBCI\\OpenBCI_GUI\\SavedData";
+  private String fileString = "C:\\Users\\the0r\\Documents\\School\\CSUF\\EGCP598 BCI LAB\\Home_Automation_OpenBCI\\OpenBCI_GUI\\SavedData\\P300SpellerStimuliRecord.txt";
   
   private boolean spellerStarted = false;
   
@@ -71,7 +65,7 @@ class W_P300Speller extends Widget {
     
   }
 
-  void update(){
+  void update() {
     super.update(); //calls the parent update() method of Widget (DON'T REMOVE)
 
     //put your code here...
@@ -165,6 +159,9 @@ class W_P300Speller extends Widget {
     runcount = 0;
     targetLetterHitCount = 0;
     randomizeTargetLetter();
+    stimuliRecord.append("Target Character: ").append(characters[targetLetterIndex]).append(System.getProperty("line.separator"));
+    stimuliRecord.append("Stimuli Delay: ").append(stimuliDelay).append(System.getProperty("line.separator"));
+    stimuliRecord.append("Row,Col").append(System.getProperty("line.separator"));
   }
   
   void randomizeTargetLetter() {
@@ -208,7 +205,25 @@ class W_P300Speller extends Widget {
       resetSpeller();
       button_StartSpeller.setString("Start Speller");
       stopButtonWasPressed();
+      println(stimuliRecord.toString());
+      clearStimuliRecord();
     }
+  }
+  
+  void clearStimuliRecord() {
+    stimuliRecord.setLength(0);  // clear string builder
+  }
+  
+  boolean isStimuliRecordReady() {
+    return spellerStarted;
+  }
+  
+  StringBuilder getStimuliRecord() {
+    return stimuliRecord;
+  }
+  
+  String getStimuliFileName() {
+    return fileString;
   }
 
   void mouseReleased(){
@@ -240,17 +255,6 @@ class W_P300Speller extends Widget {
   }
 
 };
-
-void printToFile(StringBuilder sb, String fileString) throws IOException {
-  try {
-    BufferedWriter bwr = new BufferedWriter(new FileWriter(new File(fileString)));
-    bwr.append(sb);
-    bwr.flush();
-    bwr.close();
-  } catch(IOException e) {
-    e.printStackTrace();
-  }
-}
 
 /*
 //These functions need to be global! These functions are activated when an item from the corresponding dropdown is selected
