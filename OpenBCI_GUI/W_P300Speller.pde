@@ -20,6 +20,7 @@ class W_P300Speller extends Widget {
   private final int MAX_ROW = 5;
   private final int MAX_COLUMN = 5;
   private int runcount = 0;
+  private int lastRuncount = 0;
   private int randrow = 0;
   private int randcol = 0;
   
@@ -28,6 +29,9 @@ class W_P300Speller extends Widget {
   private int targetLetterRow = 0;
   private int targetLetterColumn = 0;
   
+  int currentmillis = 0;
+  int previousmillis = 0;
+  int elapsedTime_ms = 0;
   private int maxRunCount = 60;  // temp magic number
   private int maxHitCount = 10;  // temp magic number
   private int stimuliDelay = 500; // millisecond delay between switching row and columns
@@ -79,24 +83,29 @@ class W_P300Speller extends Widget {
     pushStyle();
 
     //widgetTemplateButton.draw();
-    
     // START -- Drawing character boxes
     //ROW (x axis) in this case are the columns of previous code
     //COLUMN (y axis) in this case are the rows of previous code
-    if (spellerStarted && runcount > 0 && targetLetterHitCount < maxHitCount) { //In the case this is not first runtime, get random ints.
-      if(floor(random(0,10)) == 1) {  // 1/10 chance of guaranteeing/forcing target hit
-        randrow = targetLetterRow;
-        randcol = targetLetterColumn;
-      } else {
-        randrow = int(random(MAX_ROW));
-        //println("Randrow is equal to " + randrow);
-        randcol = int(random(MAX_COLUMN));
-        //println("Randcol is equal to " + randcol);
+    if (spellerStarted && targetLetterHitCount < maxHitCount) { //In the case this is not first runtime, get random ints.
+      //System.out.printf("Current ms: %d, previous ms: %d, elapsed time ms: %d \n", currentmillis, previousmillis, elapsedTime_ms);
+      // if elapsed time since last row and column change > stimuli delay, generate a new pair of row and col
+      // otherwise, keep drawing the previous row/col
+      if(elapsedTime_ms > stimuliDelay) {
+        elapsedTime_ms = 0;
+        if(floor(random(0,10)) == 1) {  // 1/10 chance of guaranteeing/forcing target hit
+          randrow = targetLetterRow;
+          randcol = targetLetterColumn;
+        } else {
+          randrow = int(random(MAX_ROW));
+          //println("Randrow is equal to " + randrow);
+          randcol = int(random(MAX_COLUMN));
+          //println("Randcol is equal to " + randcol);
+        }
+        stimuliRecord.append(randrow).append(",").append(randcol).append(",").append(currentmillis).append(System.getProperty("line.separator"));
+        runcount++;
       }
-      
-      stimuliRecord.append(randrow).append(",").append(randcol).append(System.getProperty("line.separator"));
-      
     }
+    
     float charXOffset, charYOffset;
     charXOffset = (w/MAX_COLUMN) / 2;
     charYOffset = (h/MAX_ROW) / 2;
@@ -113,7 +122,7 @@ class W_P300Speller extends Widget {
           rect(xpos, ypos, (w/MAX_COLUMN), (h/MAX_ROW));
           textSize(32);
           fill(255f, 255f, 255f);
-          text(characters[(j+(i*(MAX_ROW)))], xpos + charXOffset, ypos + charYOffset);
+          text(characters[(j+(i*(MAX_COLUMN)))], xpos + charXOffset, ypos + charYOffset);
         } else if (runcount > 0 && targetLetterHitCount < maxHitCount) { //If any other run time between 0 and max runcount
           if(randrow == i || randcol == j) {  
             // if current rectangle's row is the randomly selected row, or if the column is the selected column
@@ -126,8 +135,14 @@ class W_P300Speller extends Widget {
             fill(105f, 105f, 105f);  // grey if not the target letter
             if (j+(i*(MAX_COLUMN)) == targetLetterIndex) {
               fill(0f, 0f, 255f);  // blue if target letter
-              targetLetterHitCount++; // increment times target letter has been highlighted in the intersection
-              System.out.printf("Target Letter Hit Count: %d. Index: %d - Char: %c - Row: %d - Col: %d \n", targetLetterHitCount, j+(i*MAX_ROW), characters[(j+(i*MAX_COLUMN))], i, j);
+              
+              // increment only if stimuli has changed
+              if(runcount != lastRuncount) {
+                targetLetterHitCount++; // increment times target letter has been highlighted in the intersection
+                System.out.printf("Target Letter Hit Count: %d. Index: %d - Char: %c - Row: %d - Col: %d \n", targetLetterHitCount, j+(i*MAX_ROW), characters[(j+(i*MAX_COLUMN))], i, j);
+                lastRuncount = runcount;
+              }
+  
             }
           }
 
@@ -143,9 +158,12 @@ class W_P300Speller extends Widget {
       }  // end column loop
     }  // end row loop
     
+    
     if(spellerStarted) {
-      delay(stimuliDelay);
-      runcount++;
+      //delay(stimuliDelay);
+      elapsedTime_ms += (currentmillis - previousmillis);
+      previousmillis = currentmillis;
+      currentmillis = millis();
     }
       
     // END -- Drawing character boxes
@@ -157,8 +175,10 @@ class W_P300Speller extends Widget {
   
   void resetSpeller() {
     runcount = 0;
+    lastRuncount = 0;
     targetLetterHitCount = 0;
     randomizeTargetLetter();
+    elapsedTime_ms = 0;
     stimuliRecord.append("Target Character: ").append(characters[targetLetterIndex]).append(System.getProperty("line.separator"));
     stimuliRecord.append("Stimuli Delay: ").append(stimuliDelay).append(System.getProperty("line.separator"));
     stimuliRecord.append("Row,Col").append(System.getProperty("line.separator"));
@@ -238,7 +258,7 @@ class W_P300Speller extends Widget {
     */
 
   }
-
+/*
   //add custom functions here
   void dumpStimuliRecord(){
     // dump stimuli record to file
@@ -253,6 +273,7 @@ class W_P300Speller extends Widget {
       }
     }
   }
+*/
 
 };
 

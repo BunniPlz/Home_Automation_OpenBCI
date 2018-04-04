@@ -58,11 +58,25 @@ class DataProcessing_User {
   DetectedPeak[] detectedPeak;
   DetectedPeak[] peakPerBand;
   boolean switchesActive = false;
+  //Keep track of the time
+  int currentmillis = 0;
+  int previousmillis = 0;
+  //Keep track of the previous_rand_index
+  int previous_rand_index = 0;
+  //SET THE MAX DEVICES (amount of smart devices you have).
+  final int MAX_DEVICES = 5;
+  final int time_per_target = 500; //Set the time spent at each target character to be equal to 500 ms. May need to be set differently depending on the time per character flash
   final float detection_thresh_dB = 6.0f;
   final float min_allowed_peak_freq_Hz = 35.5f;
   final float max_allowed_peak_freq_Hz = 44.0f;
   final float[] processing_band_low_Hz = {35.6};
   final float[] processing_band_high_Hz = {38.1};
+  TextToSpeak[] Device = new TextToSpeak[MAX_DEVICES]; //Dummy initialization
+  //DEVICE NAMES BELOW, MODIFY TO SUIT THE NAMES WE WANT
+  /*The first array element will be active during the first character, the second array element
+  element will be active during the second character, and so on.*/
+  //In the string array below, devices will correspond to the characters in the array from A to Z, with A representing the first element
+  final String[] Devices = new String[]{"Test", "Plug", "One", "Two", "Three"}; //Test string incorporating the device names.
 
   Button leftConfig = new Button(3*(width/4) - 65,height/4 - 120,20,20,"\\/",fontInfo.buttonLabel_size);
   Button midConfig = new Button(3*(width/4) + 63,height/4 - 120,20,20,"\\/",fontInfo.buttonLabel_size);
@@ -82,6 +96,12 @@ class DataProcessing_User {
     
     peakPerBand = new DetectedPeak[nBands];
     for (int Iband=0; Iband<nBands; Iband++) peakPerBand[Iband] = new DetectedPeak();
+    String Temp;
+    for (int d=0; d<MAX_DEVICES; d++) {
+       Device[d] = new TextToSpeak(); //Initialize each Device's TTS
+       Temp = Devices[d]; //Initialize Temp to the name of each device
+       Device[d].Initialize(Temp);
+    }
   }
 
   //add some functions here...if you'd like
@@ -103,8 +123,11 @@ class DataProcessing_User {
     
     //Monitors multiple channels and checks for what they do
   public void processMultiChannel(float[][] data_newest_uV, float[][]data_long_uV, float[][] data_forDisplay_uV, FFT[] fftData) {
+    currentmillis = millis(); //Refresh the amount of milliseconds the system has accumulated.
     boolean isDetected = false;
     String txt = " ";
+    //previous_rand_index = 0;
+    if (currentmillis-previousmillis < time_per_target && previous_rand_index < MAX_DEVICES) { //As long as previous_rand_index is equal to 100, it will not begin reading data (option 1), in this case, we have detection checks only when the index is less than MAX_DEVICES (5) 
     int Ichan = 7; //Channel currently being used
     findPeakFrequency(fftData, Ichan); 
     if ((detectedPeak[Ichan].freq_Hz >= processing_band_low_Hz[0]) && (detectedPeak[Ichan].freq_Hz < processing_band_high_Hz[0])) {
@@ -112,6 +135,8 @@ class DataProcessing_User {
           detectedPeak[Ichan].threshold_dB = detection_thresh_dB;
           detectedPeak[Ichan].isDetected = true;
           isDetected = true;
+          Device[0].Trigger(); //Change back to previous_rand_index
+          println("Detection for index " + previous_rand_index + " on channel " + Ichan);
         }
     } 
     //Check the next channel to see if there is any detection.
@@ -122,6 +147,8 @@ class DataProcessing_User {
           detectedPeak[Ichan].threshold_dB = detection_thresh_dB;
           detectedPeak[Ichan].isDetected = true;
           isDetected = true;
+          Device[0].Trigger(); //Change back to previous_rand_index
+          println("Detection for index " + previous_rand_index + " on channel " + Ichan + " at time: " + (currentmillis-previousmillis));
         }
       }
       Ichan = 5;
@@ -131,6 +158,8 @@ class DataProcessing_User {
             detectedPeak[Ichan].threshold_dB = detection_thresh_dB;
             detectedPeak[Ichan].isDetected = true;
             isDetected = true;
+            Device[0].Trigger();
+            println("Detection for index " + previous_rand_index + " on channel " + Ichan);
           }
         }
        Ichan = 4;
@@ -140,8 +169,17 @@ class DataProcessing_User {
             detectedPeak[Ichan].threshold_dB = detection_thresh_dB;
             detectedPeak[Ichan].isDetected = true;
             isDetected = true;
+            Device[0].Trigger();
+            println("Detection for index " + previous_rand_index + " on channel " + Ichan);
           }
     }
+    } else {
+    previous_rand_index = current_rand_index;
+    //Reset currentmillis and previousmillis so that the conditions in the if statement above hold true.
+    currentmillis = millis();
+    previousmillis = currentmillis;
+    }
+   
   }
   
   
