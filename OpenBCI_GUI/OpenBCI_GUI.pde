@@ -41,7 +41,7 @@ import hypermedia.net.*; //for UDP
 import java.nio.ByteBuffer; //for UDP
 import edu.ucsd.sccn.LSL; //for LSL
 
-
+import guru.ttslib.*;  // for Text to Speech
 import gifAnimation.*;
 
 
@@ -73,6 +73,10 @@ boolean initSystemThreadLock = false;
 
 // ---- Define variables related to OpenBCI_GUI UDPMarker functionality
 UDP udpRX;
+
+// Used in DataProcessing_User
+int previous_rand_index = 100; //Initialize to some temporary value that we will change later on.
+int current_rand_index = 100;
 
 //choose where to get the EEG data
 final int DATASOURCE_CYTON = 0; // new default, data from serial with Accel data CHIP 2014-11-03

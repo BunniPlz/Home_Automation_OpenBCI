@@ -217,7 +217,7 @@ public class OutputFile_rawtxt {
   OutputFile_rawtxt(float fs_Hz, String _fileName) {
     fname = "SavedData"+System.getProperty("file.separator")+"OpenBCI-RAW-";
     fname += _fileName;
-    fname += ".txt";
+    fname += ".csv";
     output = createWriter(fname);        //open the file
     writeHeader(fs_Hz);    //add the header
     rowsWritten = 0;    //init the counter
@@ -227,17 +227,21 @@ public class OutputFile_rawtxt {
     output.println("%OpenBCI Raw EEG Data");
     output.println("%");
     output.println("%Sample Rate = " + fs_Hz + " Hz");
-    output.println("%First Column = SampleIndex");
-    output.println("%Last Column = Timestamp ");
+    output.println("%First Column = TotalIndex");
+    output.println("%Second Column = SampleIndex");
+    output.println("%4th Column from Right = Timestamp");
+    output.println("%4th Column from Right = Timestamp");
     output.println("%Other Columns = EEG data in microvolts followed by Accel Data (in G) interleaved with Aux Data");
+    output.println("TotalIdx,SampleIdx,CHANNEL1,CHANNEL2,CHANNEL3,CHANNEL4,CHANNEL5,CHANNEL6,CHANNEL7,CHANNEL8,AUX0,AUX1,AUX2,Timestamp,Letter,Row,Col");
     output.flush();
   }
 
   public void writeRawData_dataPacket(DataPacket_ADS1299 data, float scale_to_uV, float scale_for_aux, int stopByte) {
     //get current date time with Date()
     Date date = new Date();
-
+    int totalIndex = 0;
     if (output != null) {
+      output.print(Integer.toString(totalIndex));
       output.print(Integer.toString(data.sampleIndex));
       writeValues(data.values,scale_to_uV);
       if (eegDataSource == DATASOURCE_GANGLION) {
@@ -249,7 +253,17 @@ public class OutputFile_rawtxt {
           writeAccValues(data.auxValues, scale_for_aux);
         }
       }
-      output.print( ", " + dateFormat.format(date));
+      output.print("," + dateFormat.format(date));
+      
+      // additional columns if P300_Speller is active
+      if(w_p300speller.isSpellerStarted()) {
+        output.print("," + w_p300speller.getTargetLetterIndex());
+        output.print("," + w_p300speller.getTargetLetterRow());
+        output.print("," + w_p300speller.getTargetLetterColumn());
+      } else {
+        output.print(",,,");
+      }
+      
       output.println(); rowsWritten++;
       //output.flush();
     }
@@ -266,7 +280,7 @@ public class OutputFile_rawtxt {
   private void writeAccValues(int[] values, float scale_fac) {
     int nVal = values.length;
     for (int Ival = 0; Ival < nVal; Ival++) {
-      output.print(", ");
+      output.print(",");
       output.print(String.format(Locale.US, "%.3f", scale_fac * float(values[Ival])));
     }
   }
@@ -276,40 +290,40 @@ public class OutputFile_rawtxt {
       // println("board mode: " + cyton.getBoardMode());
       if (cyton.getBoardMode() == BOARD_MODE_DIGITAL) {
         if (cyton.isWifi()) {
-          output.print(", " + ((data.auxValues[0] & 0xFF00) >> 8));
-          output.print(", " + (data.auxValues[0] & 0xFF));
-          output.print(", " + data.auxValues[1]);
+          output.print("," + ((data.auxValues[0] & 0xFF00) >> 8));
+          output.print("," + (data.auxValues[0] & 0xFF));
+          output.print("," + data.auxValues[1]);
         } else {
-          output.print(", " + ((data.auxValues[0] & 0xFF00) >> 8));
-          output.print(", " + (data.auxValues[0] & 0xFF));
-          output.print(", " + ((data.auxValues[1] & 0xFF00) >> 8));
-          output.print(", " + (data.auxValues[1] & 0xFF));
-          output.print(", " + data.auxValues[2]);
+          output.print("," + ((data.auxValues[0] & 0xFF00) >> 8));
+          output.print("," + (data.auxValues[0] & 0xFF));
+          output.print("," + ((data.auxValues[1] & 0xFF00) >> 8));
+          output.print("," + (data.auxValues[1] & 0xFF));
+          output.print("," + data.auxValues[2]);
         }
       } else if (cyton.getBoardMode() == BOARD_MODE_ANALOG) {
         if (cyton.isWifi()) {
-          output.print(", " + data.auxValues[0]);
-          output.print(", " + data.auxValues[1]);
+          output.print("," + data.auxValues[0]);
+          output.print("," + data.auxValues[1]);
         } else {
-          output.print(", " + data.auxValues[0]);
-          output.print(", " + data.auxValues[1]);
-          output.print(", " + data.auxValues[2]);
+          output.print("," + data.auxValues[0]);
+          output.print("," + data.auxValues[1]);
+          output.print("," + data.auxValues[2]);
         }
       } else if (cyton.getBoardMode() == BOARD_MODE_MARKER) {
-        output.print(", " + data.auxValues[0]);
+        output.print("," + data.auxValues[0]);
         if ( data.auxValues[0] > 0) {
           hub.validLastMarker = data.auxValues[0];
         }
           
       } else {
         for (int Ival = 0; Ival < 3; Ival++) {
-          output.print(", " + data.auxValues[Ival]);
+          output.print("," + data.auxValues[Ival]);
         }
       }
     } else {
       for (int i = 0; i < 3; i++) {
-        output.print(", " + (data.auxValues[i] & 0xFF));
-        output.print(", " + ((data.auxValues[i] & 0xFF00) >> 8));
+        output.print("," + (data.auxValues[i] & 0xFF));
+        output.print("," + ((data.auxValues[i] & 0xFF00) >> 8));
       }
     }
     

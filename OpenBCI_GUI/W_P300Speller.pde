@@ -234,8 +234,20 @@ class W_P300Speller extends Widget {
     stimuliRecord.setLength(0);  // clear string builder
   }
   
-  boolean isStimuliRecordReady() {
+  boolean isSpellerStarted() {
     return spellerStarted;
+  }
+  
+  int getTargetLetterIndex() {
+    return targetLetterIndex;
+  }
+  
+  int getTargetLetterRow() {
+    return targetLetterRow;
+  }
+  
+  int getTargetLetterColumn() {
+    return targetLetterColumn;
   }
   
   StringBuilder getStimuliRecord() {
