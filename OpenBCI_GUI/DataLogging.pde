@@ -227,21 +227,17 @@ public class OutputFile_rawtxt {
     output.println("%OpenBCI Raw EEG Data");
     output.println("%");
     output.println("%Sample Rate = " + fs_Hz + " Hz");
-    output.println("%First Column = TotalIndex");
-    output.println("%Second Column = SampleIndex");
-    output.println("%4th Column from Right = Timestamp");
-    output.println("%4th Column from Right = Timestamp");
+    output.println("%First Column = SampleIndex");
+    output.println("%5th Column from Right = Timestamp");
     output.println("%Other Columns = EEG data in microvolts followed by Accel Data (in G) interleaved with Aux Data");
-    output.println("TotalIdx,SampleIdx,CHANNEL1,CHANNEL2,CHANNEL3,CHANNEL4,CHANNEL5,CHANNEL6,CHANNEL7,CHANNEL8,AUX0,AUX1,AUX2,Timestamp,Letter,Row,Col");
+    output.println("SampleIdx,CHANNEL1,CHANNEL2,CHANNEL3,CHANNEL4,CHANNEL5,CHANNEL6,CHANNEL7,CHANNEL8,AUX0,AUX1,AUX2,Timestamp,Letter,Row,Col");
     output.flush();
   }
 
   public void writeRawData_dataPacket(DataPacket_ADS1299 data, float scale_to_uV, float scale_for_aux, int stopByte) {
     //get current date time with Date()
     Date date = new Date();
-    int totalIndex = 0;
     if (output != null) {
-      output.print(Integer.toString(totalIndex));
       output.print(Integer.toString(data.sampleIndex));
       writeValues(data.values,scale_to_uV);
       if (eegDataSource == DATASOURCE_GANGLION) {
@@ -263,7 +259,7 @@ public class OutputFile_rawtxt {
       } else {
         output.print(",,,");
       }
-      
+
       output.println(); rowsWritten++;
       //output.flush();
     }

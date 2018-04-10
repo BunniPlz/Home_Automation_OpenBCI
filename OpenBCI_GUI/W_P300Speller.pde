@@ -38,10 +38,15 @@ class W_P300Speller extends Widget {
   private String fileString = "C:\\Users\\the0r\\Documents\\School\\CSUF\\EGCP598 BCI LAB\\Home_Automation_OpenBCI\\OpenBCI_GUI\\SavedData\\P300SpellerStimuliRecord.txt";
   
   private boolean spellerStarted = false;
+  private boolean countdownStarted = false;
+  private int countdownDuration = 10000;  // delay before rows begin to flash (ms)
+  private int countdownCurrent;  // delay to allow response to settle before beginning speller acquisition
   
   private StringBuilder stimuliRecord;
   
-  char[] characters = {'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'}; 
+  char[] characters = {'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'};
+  private String fs = System.getProperty("file.separator");
+  private PFont bigFont;
 
   W_P300Speller(PApplet _parent){
     super(_parent); //calls the parent CONSTRUCTOR method of Widget (DON'T REMOVE)
@@ -58,8 +63,13 @@ class W_P300Speller extends Widget {
     widgetTemplateButton.setFont(p4, 14);
     widgetTemplateButton.setURL("http://docs.openbci.com/Tutorials/15-Custom_Widgets");
     */
-    button_StartSpeller = new Button(x + 10, y + 10, 200,  navH, "Start Speller", 12);
+    bigFont = loadFont(fs + "data" + fs + "fonts" + fs + "AgencyFB-Reg-72.vlw");
+    println("W_P300_Speller - loaded font AgencyFB-Reg-72.vlw");
+    
+    button_StartSpeller = new Button(x, y - navH, 200, navH, "Start Speller", 12);
     button_StartSpeller.setFont(p4, 14);
+    
+    countdownCurrent = countdownDuration/1000;
     
     stimuliRecord = new StringBuilder();
     randomizeTargetLetter();
@@ -90,30 +100,44 @@ class W_P300Speller extends Widget {
       //System.out.printf("Current ms: %d, previous ms: %d, elapsed time ms: %d \n", currentmillis, previousmillis, elapsedTime_ms);
       // if elapsed time since last row and column change > stimuli delay, generate a new pair of row and col
       // otherwise, keep drawing the previous row/col
-      if(elapsedTime_ms > stimuliDelay) {
-        elapsedTime_ms = 0;
-        if(floor(random(0,10)) == 1) {  // 1/10 chance of guaranteeing/forcing target hit
-          randrow = targetLetterRow;
-          randcol = targetLetterColumn;
-        } else {
-          randrow = int(random(MAX_ROW));
-          //println("Randrow is equal to " + randrow);
-          randcol = int(random(MAX_COLUMN));
-          //println("Randcol is equal to " + randcol);
+      
+      if(countdownCurrent == 0) {  // after countdown has reached 0
+        
+        if(elapsedTime_ms > stimuliDelay) {
+          elapsedTime_ms = 0;
+          if(floor(random(0,10)) == 1) {  // 1/10 chance of guaranteeing/forcing target hit
+            randrow = targetLetterRow;
+            randcol = targetLetterColumn;
+          } else {
+            randrow = int(random(MAX_ROW));
+            //println("Randrow is equal to " + randrow);
+            randcol = int(random(MAX_COLUMN));
+            //println("Randcol is equal to " + randcol);
+          }
+          stimuliRecord.append(randrow).append(",").append(randcol).append(",").append(currentmillis).append(System.getProperty("line.separator"));
+          runcount++;
         }
-        stimuliRecord.append(randrow).append(",").append(randcol).append(",").append(currentmillis).append(System.getProperty("line.separator"));
-        runcount++;
+      } else {
+        if(elapsedTime_ms > 1000) {  // every second during countdown before starting speller
+          elapsedTime_ms = 0;
+          countdownCurrent--;
+        }
       }
-    }
+    } 
     
     float charXOffset, charYOffset;
     charXOffset = (w/MAX_COLUMN) / 2;
     charYOffset = (h/MAX_ROW) / 2;
     for (int i = 0; i < MAX_ROW; i++) { //y value
-      float ypos = (h/MAX_ROW)*i;
+      float ypos = y + (h/MAX_ROW)*i;
       for (int j = 0; j < MAX_COLUMN; j++) { //x value
-        float xpos = (w/MAX_COLUMN)*j;
+        float xpos = x + (w/MAX_COLUMN)*j;
         if (runcount == 0 || !spellerStarted){ //If first runtime, this is a special case. Display all characters
+          // appending header info to stimuliRecord
+          stimuliRecord.append("Target Character: ").append(characters[targetLetterIndex]).append(System.getProperty("line.separator"));
+          stimuliRecord.append("Stimuli Delay: ").append(stimuliDelay).append(System.getProperty("line.separator"));
+          stimuliRecord.append("Row,Col").append(System.getProperty("line.separator"));
+        
           fill(0f);
           if(j+(i*(MAX_ROW)) == targetLetterIndex) {  // color the target letter blue
             fill(0f, 0f, 255f);
@@ -142,7 +166,6 @@ class W_P300Speller extends Widget {
                 System.out.printf("Target Letter Hit Count: %d. Index: %d - Char: %c - Row: %d - Col: %d \n", targetLetterHitCount, j+(i*MAX_ROW), characters[(j+(i*MAX_COLUMN))], i, j);
                 lastRuncount = runcount;
               }
-  
             }
           }
 
@@ -157,16 +180,19 @@ class W_P300Speller extends Widget {
         }
       }  // end column loop
     }  // end row loop
+    // END -- Drawing character boxes 
     
-    
-    if(spellerStarted) {
-      //delay(stimuliDelay);
-      elapsedTime_ms += (currentmillis - previousmillis);
-      previousmillis = currentmillis;
-      currentmillis = millis();
-    }
+    //delay(stimuliDelay);
+    elapsedTime_ms += (currentmillis - previousmillis);
+    previousmillis = currentmillis;
+    currentmillis = millis();
       
-    // END -- Drawing character boxes
+    //draw countdown if active
+    if(countdownCurrent > 0) {
+      textFont(bigFont);
+      fill(255f, 255f, 255f); //text color white
+      text(countdownCurrent,w/2,h/2);
+    }
     
     button_StartSpeller.draw();
     popStyle();
@@ -176,12 +202,10 @@ class W_P300Speller extends Widget {
   void resetSpeller() {
     runcount = 0;
     lastRuncount = 0;
+    countdownCurrent = countdownDuration/1000;
     targetLetterHitCount = 0;
     randomizeTargetLetter();
     elapsedTime_ms = 0;
-    stimuliRecord.append("Target Character: ").append(characters[targetLetterIndex]).append(System.getProperty("line.separator"));
-    stimuliRecord.append("Stimuli Delay: ").append(stimuliDelay).append(System.getProperty("line.separator"));
-    stimuliRecord.append("Row,Col").append(System.getProperty("line.separator"));
   }
   
   void randomizeTargetLetter() {
@@ -196,6 +220,7 @@ class W_P300Speller extends Widget {
 
     //put your code here...
     //widgetTemplateButton.setPos(x + w/2 - widgetTemplateButton.but_dx/2, y + h/2 - widgetTemplateButton.but_dy/2);
+    button_StartSpeller.setPos(x, y - navH);
 
 
   }
@@ -225,7 +250,7 @@ class W_P300Speller extends Widget {
       resetSpeller();
       button_StartSpeller.setString("Start Speller");
       stopButtonWasPressed();
-      println(stimuliRecord.toString());
+      //println(stimuliRecord.toString());
       clearStimuliRecord();
     }
   }

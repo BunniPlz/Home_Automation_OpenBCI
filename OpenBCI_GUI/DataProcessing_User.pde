@@ -67,10 +67,10 @@ class DataProcessing_User {
   final int MAX_DEVICES = 5;
   final int time_per_target = 500; //Set the time spent at each target character to be equal to 500 ms. May need to be set differently depending on the time per character flash
   final float detection_thresh_dB = 6.0f;
-  final float min_allowed_peak_freq_Hz = 35.5f;
-  final float max_allowed_peak_freq_Hz = 44.0f;
-  final float[] processing_band_low_Hz = {35.6};
-  final float[] processing_band_high_Hz = {38.1};
+  final float min_allowed_peak_freq_Hz = 7.9f;
+  final float max_allowed_peak_freq_Hz = 12.1f;
+  final float[] processing_band_low_Hz = {8.0};
+  final float[] processing_band_high_Hz = {12.0};
   TextToSpeak[] Device = new TextToSpeak[MAX_DEVICES]; //Dummy initialization
   //DEVICE NAMES BELOW, MODIFY TO SUIT THE NAMES WE WANT
   /*The first array element will be active during the first character, the second array element
@@ -123,10 +123,9 @@ class DataProcessing_User {
     
     //Monitors multiple channels and checks for what they do
   public void processMultiChannel(float[][] data_newest_uV, float[][]data_long_uV, float[][] data_forDisplay_uV, FFT[] fftData) {
-    currentmillis = millis(); //Refresh the amount of milliseconds the system has accumulated.
+    //currentmillis = millis(); //Refresh the amount of milliseconds the system has accumulated.
     boolean isDetected = false;
     String txt = " ";
-    //previous_rand_index = 0;
     if (currentmillis-previousmillis < time_per_target && previous_rand_index < MAX_DEVICES) { //As long as previous_rand_index is equal to 100, it will not begin reading data (option 1), in this case, we have detection checks only when the index is less than MAX_DEVICES (5) 
     int Ichan = 7; //Channel currently being used
     findPeakFrequency(fftData, Ichan); 
@@ -135,7 +134,7 @@ class DataProcessing_User {
           detectedPeak[Ichan].threshold_dB = detection_thresh_dB;
           detectedPeak[Ichan].isDetected = true;
           isDetected = true;
-          Device[0].Trigger(); //Change back to previous_rand_index
+          Device[previous_rand_index].Trigger(previous_rand_index);
           println("Detection for index " + previous_rand_index + " on channel " + Ichan);
         }
     } 
@@ -147,7 +146,7 @@ class DataProcessing_User {
           detectedPeak[Ichan].threshold_dB = detection_thresh_dB;
           detectedPeak[Ichan].isDetected = true;
           isDetected = true;
-          Device[0].Trigger(); //Change back to previous_rand_index
+          Device[previous_rand_index].Trigger(previous_rand_index);
           println("Detection for index " + previous_rand_index + " on channel " + Ichan + " at time: " + (currentmillis-previousmillis));
         }
       }
@@ -158,8 +157,8 @@ class DataProcessing_User {
             detectedPeak[Ichan].threshold_dB = detection_thresh_dB;
             detectedPeak[Ichan].isDetected = true;
             isDetected = true;
-            Device[0].Trigger();
-            println("Detection for index " + previous_rand_index + " on channel " + Ichan);
+            Device[previous_rand_index].Trigger(previous_rand_index);
+            println("Detection for index " + previous_rand_index + " on channel " + Ichan + " at time: " + (currentmillis-previousmillis));
           }
         }
        Ichan = 4;
@@ -169,8 +168,8 @@ class DataProcessing_User {
             detectedPeak[Ichan].threshold_dB = detection_thresh_dB;
             detectedPeak[Ichan].isDetected = true;
             isDetected = true;
-            Device[0].Trigger();
-            println("Detection for index " + previous_rand_index + " on channel " + Ichan);
+            Device[previous_rand_index].Trigger(previous_rand_index);
+            println("Detection for index " + previous_rand_index + " on channel " + Ichan + " at time: " + (currentmillis-previousmillis));
           }
     }
     } else {
@@ -252,3 +251,47 @@ class DataProcessing_User {
   } //end method findPeakFrequency
 
  }
+ /*//For Future use in classification.
+ class KNNinfo {
+ float Time;
+ float SNR_dB;
+ float Peak;
+ }
+ KNNinfo[] data = new KNNinfo[MAX_DATA];
+ for (int i = 0; i < MAX_DATA; i++) {
+   data[i] = new KNNinfo();
+ }
+ int current_max_index;
+ //Not sure what to do when there is not a full amount of data inside the KNN algorithm.
+ //Include somewhere: a new class that takes into account the classification of each
+ KNNAlgorithm(){ //Perform KNN algorithm
+   float Time = float(currentmillis - previousmillis);
+   float SNR_dB = detectedPeak[Ichan].SNR_dB;
+   float Peak = detectedPeak[Ichan].rms_uV_perBin;
+   for (int i = 0; i < current_max_index; i++) {
+     float x = (pow(data[i].Time)-pow(Time)); //Compute the distance (for x on this line) between the points in data and the recently acquired data.
+     float y = (pow(data[i].SNR_dB)-pow(SNR_dB));
+     float z = (pow(data[i].Peak)-pow(Peak));
+     distance = sqrt(x + y + z);
+     //Add multiple indices depending on the amount of checks we want to perform. For loop with N classifications.
+     for (int j = 0; j < N; j++) {
+       if (distance < minindex.distance){
+         minindex.distance = distance;
+         minindex.index = i;
+       }
+     }
+   }
+   for (int i = 0; i < N; i++) {
+      if(data[minindex[i].index] == 'A'){
+        numpointsnearA++;
+      } else { //no detection region
+        numpointsnearB++;
+      }
+   }
+   if (numpointsnearA > numpointsnearB) {
+     detection = true;
+   } else {
+     detection = false;
+   }
+ }
+ */ 
