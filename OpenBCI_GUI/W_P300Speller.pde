@@ -17,7 +17,7 @@ class W_P300Speller extends Widget {
   //Button widgetTemplateButton;
   Button button_StartSpeller;
   
-  private final int MAX_ROW = 5;
+  private final int MAX_ROW = 1;
   private final int MAX_COLUMN = 5;
   private int runcount = 0;
   private int lastRuncount = 0;
@@ -40,9 +40,7 @@ class W_P300Speller extends Widget {
   private boolean spellerStarted = false;
   private boolean countdownStarted = false;
   private int countdownDuration = 10000;  // delay before rows begin to flash (ms)
-  private int countdownCurrent;  // delay to allow response to settle before beginning speller acquisition
-  
-  private StringBuilder stimuliRecord;
+  public int countdownCurrent;  // delay to allow response to settle before beginning speller acquisition
   
   char[] characters = {'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'};
   private String fs = System.getProperty("file.separator");
@@ -71,11 +69,6 @@ class W_P300Speller extends Widget {
     
     countdownCurrent = countdownDuration/1000;
     
-    stimuliRecord = new StringBuilder();
-    randomizeTargetLetter();
-    stimuliRecord.append("Target Character: ").append(characters[targetLetterIndex]).append(System.getProperty("line.separator"));
-    stimuliRecord.append("Stimuli Delay: ").append(stimuliDelay).append(System.getProperty("line.separator"));
-    stimuliRecord.append("Row,Col").append(System.getProperty("line.separator"));
     
   }
 
@@ -114,7 +107,7 @@ class W_P300Speller extends Widget {
             randcol = int(random(MAX_COLUMN));
             //println("Randcol is equal to " + randcol);
           }
-          stimuliRecord.append(randrow).append(",").append(randcol).append(",").append(currentmillis).append(System.getProperty("line.separator"));
+          current_rand_index = (randcol + randrow*MAX_COLUMN);
           runcount++;
         }
       } else {
@@ -133,10 +126,6 @@ class W_P300Speller extends Widget {
       for (int j = 0; j < MAX_COLUMN; j++) { //x value
         float xpos = x + (w/MAX_COLUMN)*j;
         if (runcount == 0 || !spellerStarted){ //If first runtime, this is a special case. Display all characters
-          // appending header info to stimuliRecord
-          stimuliRecord.append("Target Character: ").append(characters[targetLetterIndex]).append(System.getProperty("line.separator"));
-          stimuliRecord.append("Stimuli Delay: ").append(stimuliDelay).append(System.getProperty("line.separator"));
-          stimuliRecord.append("Row,Col").append(System.getProperty("line.separator"));
         
           fill(0f);
           if(j+(i*(MAX_ROW)) == targetLetterIndex) {  // color the target letter blue
@@ -170,7 +159,7 @@ class W_P300Speller extends Widget {
           }
 
           stroke(255f);  // rectangle border color
-          rect(xpos, ypos, (w/MAX_COLUMN), (h/MAX_COLUMN));  // draw rectangle
+          rect(xpos, ypos, (w/MAX_COLUMN), (h/MAX_ROW));  // draw rectangle
           textSize(32);  // set text size
           fill(255f, 255f, 255f);  // text color white
           text(characters[(j+(i*(MAX_COLUMN)))], xpos + charXOffset, ypos + charYOffset);  // writes the character 
@@ -250,13 +239,7 @@ class W_P300Speller extends Widget {
       resetSpeller();
       button_StartSpeller.setString("Start Speller");
       stopButtonWasPressed();
-      //println(stimuliRecord.toString());
-      clearStimuliRecord();
     }
-  }
-  
-  void clearStimuliRecord() {
-    stimuliRecord.setLength(0);  // clear string builder
   }
   
   boolean isSpellerStarted() {
@@ -273,10 +256,6 @@ class W_P300Speller extends Widget {
   
   int getTargetLetterColumn() {
     return targetLetterColumn;
-  }
-  
-  StringBuilder getStimuliRecord() {
-    return stimuliRecord;
   }
   
   String getStimuliFileName() {
