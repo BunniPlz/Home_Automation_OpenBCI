@@ -19,11 +19,11 @@ class W_P300Speller extends Widget {
   
   private final int MAX_ROW = 1;
   private final int MAX_COLUMN = 5;
-  private int runcount = 0;
+  public int runcount = 0;
   private int lastRuncount = 0;
   private int randrow = 0;
   private int randcol = 0;
-  
+  private int[] letter_pattern;
   private int targetLetterIndex = 0;
   private int targetLetterHitCount = 0;
   private int targetLetterRow = 0;
@@ -38,13 +38,14 @@ class W_P300Speller extends Widget {
   private String fileString = "C:\\Users\\the0r\\Documents\\School\\CSUF\\EGCP598 BCI LAB\\Home_Automation_OpenBCI\\OpenBCI_GUI\\SavedData\\P300SpellerStimuliRecord.txt";
   private int[] hit_count;
   private int NUM_LETTERS = 5;
+  private int letter_runs = 0;
   private boolean spellerStarted = false;
   private boolean countdownStarted = false;
   private boolean dice_roll_success = false;
+  private int totalruns = 0;
   private char previous_character = 'F';
   private int countdownDuration = 10000;  // delay before rows begin to flash (ms)
   public int countdownCurrent;  // delay to allow response to settle before beginning speller acquisition
-  
   char[] characters = {'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'};
   private String fs = System.getProperty("file.separator");
   private PFont bigFont;
@@ -72,6 +73,7 @@ class W_P300Speller extends Widget {
     
     countdownCurrent = countdownDuration/1000;
     hit_count = new int[5];
+    letter_pattern = new int[25];
     
   }
 
@@ -104,8 +106,10 @@ class W_P300Speller extends Widget {
             randrow = targetLetterRow;
             randcol = targetLetterColumn;
             current_rand_index = (randcol + randrow*MAX_COLUMN);
-            runcount++;
-            println("New Column");
+            if(letter_runs > 0) { //Do not increment for the first run.
+              runcount++;
+            }
+            letter_runs++;
         }
       } else {
         if(elapsedTime_ms > 1000) {  // every second during countdown before starting speller
@@ -133,7 +137,7 @@ class W_P300Speller extends Widget {
           textSize(32);
           fill(255f, 255f, 255f);
           text(characters[(j+(i*(MAX_COLUMN)))], xpos + charXOffset, ypos + charYOffset);
-        } else if (runcount > 0 && targetLetterHitCount < maxHitCount) { //If any other run time between 0 and max runcount
+        } else if (((runcount > 0) || (totalruns != 0)) && targetLetterHitCount < maxHitCount) { //If any other run time between 0 and max runcount
           if(randrow == i || randcol == j) {  
             // if current rectangle's row is the randomly selected row, or if the column is the selected column
             fill(105f);  // set rect fill color to grey(lit)
@@ -150,10 +154,14 @@ class W_P300Speller extends Widget {
               if(runcount != lastRuncount) {
                 targetLetterHitCount++; // increment times target letter has been highlighted in the intersection
                 System.out.printf("Target Letter Hit Count: %d. Index: %d - Char: %c - Row: %d - Col: %d \n", targetLetterHitCount, j+(i*MAX_ROW), characters[(j+(i*MAX_COLUMN))], i, j);
+                lastRuncount = runcount;
                 if(targetLetterHitCount == maxHitCount) { //Reset the speller to its original state if
                   resetSpeller();
+                  for (int p = 0; p < 25; p++) {
+                    println("Letter #" + p + ": " + letter_pattern[p]);
+                  }
+                  totalruns++;
                 }
-                lastRuncount = runcount;
               }
             }
           }
@@ -256,7 +264,10 @@ float dice_roll = random(0,100);
       }
     }
     current_rand_index = (randcol + randrow*MAX_COLUMN);
-    println("run # : " + runcount);
+    println("RUN # : " + runcount);
+    println("NOW ON INDEX " + current_rand_index);
+    letter_pattern[runcount] = current_rand_index;
+    //runcount++;
     dice_roll_success = false;
     targetLetterIndex = randcol;
 
