@@ -16,14 +16,14 @@ class W_P300Speller extends Widget {
   //put your custom variables here...
   //Button widgetTemplateButton;
   Button button_StartSpeller;
-  
+  Button button_CollectClassification;
   private final int MAX_ROW = 1;
   private final int MAX_COLUMN = 5;
-  private int runcount = 0;
+  public int runcount = 0;
   private int lastRuncount = 0;
   private int randrow = 0;
   private int randcol = 0;
-  
+  private int[] letter_pattern;
   private int targetLetterIndex = 0;
   private int targetLetterHitCount = 0;
   private int targetLetterRow = 0;
@@ -33,19 +33,28 @@ class W_P300Speller extends Widget {
   int previousmillis = 0;
   int elapsedTime_ms = 0;
   private int maxRunCount = 60;  // temp magic number
-  private int maxHitCount = 10;  // temp magic number
-  private int stimuliDelay = 500; // millisecond delay between switching row and columns
+  private int maxHitCount = 25;  // temp magic number
+  private int stimuliDelay = 1000; // millisecond delay between switching row and columns
   private String fileString = "C:\\Users\\the0r\\Documents\\School\\CSUF\\EGCP598 BCI LAB\\Home_Automation_OpenBCI\\OpenBCI_GUI\\SavedData\\P300SpellerStimuliRecord.txt";
-  
+  private int[] hit_count;
+  private int NUM_LETTERS = 5;
+  private int letter_runs = 0;
   private boolean spellerStarted = false;
   private boolean countdownStarted = false;
+  private boolean dice_roll_success = false;
+  private int totalruns = 0;
+  private char previous_character = 'F';
   private int countdownDuration = 10000;  // delay before rows begin to flash (ms)
   public int countdownCurrent;  // delay to allow response to settle before beginning speller acquisition
-  
   char[] characters = {'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'};
   private String fs = System.getProperty("file.separator");
   private PFont bigFont;
-
+  private int target_character_index = 0;
+  private int target_index_variable = 0;
+  private int class_runs = 0;
+  private final int MAX_RUNS = 5;
+  public boolean classification = false; //Classify the signal
+  public int[] target_indices;
   W_P300Speller(PApplet _parent){
     super(_parent); //calls the parent CONSTRUCTOR method of Widget (DON'T REMOVE)
 
@@ -61,14 +70,17 @@ class W_P300Speller extends Widget {
     widgetTemplateButton.setFont(p4, 14);
     widgetTemplateButton.setURL("http://docs.openbci.com/Tutorials/15-Custom_Widgets");
     */
-    bigFont = loadFont(fs + "data" + fs + "fonts" + fs + "AgencyFB-Reg-72.vlw");
-    println("W_P300_Speller - loaded font AgencyFB-Reg-72.vlw");
+    bigFont = loadFont("CourierNewPSMT-24.vlw");
+    println("W_P300_Speller - loaded font CourierNewPSMT-24.vlw");
     
     button_StartSpeller = new Button(x, y - navH, 200, navH, "Start Speller", 12);
     button_StartSpeller.setFont(p4, 14);
-    
+    button_CollectClassification = new Button(x+200, y-navH, 200, navH, "Collect Data", 12);
+    button_StartSpeller.setFont(p4, 14);
     countdownCurrent = countdownDuration/1000;
-    
+    hit_count = new int[5];
+    letter_pattern = new int[25];
+    //target_indices = new int[5]; //Reset this after
     
   }
 
@@ -93,22 +105,19 @@ class W_P300Speller extends Widget {
       //System.out.printf("Current ms: %d, previous ms: %d, elapsed time ms: %d \n", currentmillis, previousmillis, elapsedTime_ms);
       // if elapsed time since last row and column change > stimuli delay, generate a new pair of row and col
       // otherwise, keep drawing the previous row/col
-      
       if(countdownCurrent == 0) {  // after countdown has reached 0
         
         if(elapsedTime_ms > stimuliDelay) {
           elapsedTime_ms = 0;
-          if(floor(random(0,10)) == 1) {  // 1/10 chance of guaranteeing/forcing target hit
+          randomizeTargetLetter();
             randrow = targetLetterRow;
             randcol = targetLetterColumn;
-          } else {
-            randrow = int(random(MAX_ROW));
-            //println("Randrow is equal to " + randrow);
-            randcol = int(random(MAX_COLUMN));
-            //println("Randcol is equal to " + randcol);
-          }
-          current_rand_index = (randcol + randrow*MAX_COLUMN);
-          runcount++;
+            current_rand_index = (randcol + randrow*MAX_COLUMN);
+            
+            if(letter_runs > 0) { //Do not increment for the first run.
+              runcount++;
+            }
+            letter_runs++;
         }
       } else {
         if(elapsedTime_ms > 1000) {  // every second during countdown before starting speller
@@ -136,7 +145,7 @@ class W_P300Speller extends Widget {
           textSize(32);
           fill(255f, 255f, 255f);
           text(characters[(j+(i*(MAX_COLUMN)))], xpos + charXOffset, ypos + charYOffset);
-        } else if (runcount > 0 && targetLetterHitCount < maxHitCount) { //If any other run time between 0 and max runcount
+        } else if (((runcount > 0) || (totalruns != 0)) && targetLetterHitCount < maxHitCount) { //If any other run time between 0 and max runcount
           if(randrow == i || randcol == j) {  
             // if current rectangle's row is the randomly selected row, or if the column is the selected column
             fill(105f);  // set rect fill color to grey(lit)
@@ -154,6 +163,18 @@ class W_P300Speller extends Widget {
                 targetLetterHitCount++; // increment times target letter has been highlighted in the intersection
                 System.out.printf("Target Letter Hit Count: %d. Index: %d - Char: %c - Row: %d - Col: %d \n", targetLetterHitCount, j+(i*MAX_ROW), characters[(j+(i*MAX_COLUMN))], i, j);
                 lastRuncount = runcount;
+                if(targetLetterHitCount == maxHitCount) { //Reset the speller to its original state if
+                  for (int p = 0; p < 25; p++) {
+                    println("Letter #" + p + ": " + letter_pattern[p]);
+                  }
+                  class_runs++;
+                  if(!classification || (class_runs < MAX_RUNS)) { //If we are not classifying or classification runs has not reached the maximum amount we want to do, then we will continue to utilize the speller.
+                    resetSpeller();
+                  } else {
+                    classification = false;
+                  }
+                  totalruns++;
+                }
               }
             }
           }
@@ -184,6 +205,7 @@ class W_P300Speller extends Widget {
     }
     
     button_StartSpeller.draw();
+    button_CollectClassification.draw();
     popStyle();
 
   }
@@ -195,13 +217,76 @@ class W_P300Speller extends Widget {
     targetLetterHitCount = 0;
     randomizeTargetLetter();
     elapsedTime_ms = 0;
+    for(int i = 0; i < 5; i++) { //Reset hit_count array keeping track of all letters.
+      hit_count[i] = 0;
+    }
   }
   
   void randomizeTargetLetter() {
     targetLetterRow = int(random(MAX_ROW));
-    targetLetterColumn = int(random(MAX_COLUMN));
+    float dice_roll = random(0,100);
+    if(dice_roll < 20 && dice_roll >= 0 && hit_count[0] < 5 && previous_character != 'A') {  //As long as hit_count is less than 5 for 'A', 'B', 'C', 'D', 'E' for indices 0, 1, 2, 3, 4 respectively, then we can set it to the desired letter of that condition.
+      targetLetterColumn = randcol = 0;
+      hit_count[0]++;
+      previous_character = 'A';
+    }
+    else if (dice_roll >= 20 - 20*(hit_count[0]/5) && dice_roll < 40 && hit_count[1] < 5 && previous_character != 'B') {
+      targetLetterColumn = randcol = 1;
+      hit_count[1]++;
+      previous_character = 'B';
+    }
+    else if (dice_roll >= 40 - 40*(hit_count[1]/5) && dice_roll < 60 && hit_count[2] < 5 && previous_character != 'C') {
+      targetLetterColumn = randcol = 2;
+      hit_count[2]++;
+      previous_character = 'C';
+    }
+    else if (dice_roll >= 60 - 60*(hit_count[2]/5)  && dice_roll < 80 && hit_count[3] < 5 && previous_character != 'D') {
+     targetLetterColumn =  randcol = 3;
+      hit_count[3]++;
+      previous_character = 'D';
+    }
+    else if (dice_roll >= 80 - 80*(hit_count[3]/5) && dice_roll < 100 && hit_count[4] < 5 && previous_character != 'E') {
+      targetLetterColumn = randcol = 4;
+      hit_count[4]++;
+      previous_character = 'E';
+    }
+    else if (dice_roll_success == false) {
+      if (hit_count[0] < 5 && previous_character != 'A'){
+      targetLetterColumn =  randcol = 0;
+        hit_count[0]++;
+        previous_character = 'A';
+      }
+      else if (hit_count[1] < 5 && previous_character != 'B'){
+      targetLetterColumn =  randcol = 1;
+        hit_count[1]++;
+        previous_character = 'B';
+      }
+      else if (hit_count[2] < 5 && previous_character != 'C'){
+       targetLetterColumn = randcol = 2;
+        hit_count[2]++;
+        previous_character = 'C';
+      }
+      else if (hit_count[3] < 5 && previous_character != 'D'){
+      targetLetterColumn = randcol = 3;
+        hit_count[3]++;
+        previous_character = 'D';
+      }
+      else if (hit_count[4] < 5 && previous_character != 'E'){
+       targetLetterColumn = randcol = 4;
+        hit_count[4]++;
+        previous_character = 'E';
+      }
+    }
+    current_rand_index = (randcol + randrow*MAX_COLUMN);
+    println("RUN # : " + runcount);
+    println("NOW ON INDEX " + current_rand_index);
+    letter_pattern[runcount] = current_rand_index;
+    //runcount++;
+    dice_roll_success = false;
+    targetLetterIndex = randcol;
+
     targetLetterIndex = targetLetterColumn+(targetLetterRow*MAX_COLUMN);
-    System.out.printf("Target letter: %c - Index: %d - Row,Column: %d, %d\n", characters[targetLetterIndex], targetLetterIndex, targetLetterRow, targetLetterColumn); 
+  
   }
 
   void screenResized(){
@@ -226,7 +311,10 @@ class W_P300Speller extends Widget {
     if(button_StartSpeller.isMouseHere()) {
       toggleSpeller();
     }
-
+    if(button_CollectClassification.isMouseHere()) {
+      toggleSpeller();
+      classification = true;
+    }
   }
   
   void toggleSpeller() {

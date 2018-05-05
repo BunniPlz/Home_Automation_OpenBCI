@@ -63,7 +63,8 @@ boolean abandonInit = false;
 final int NCHAN_CYTON = 8;
 final int NCHAN_CYTON_DAISY = 16;
 final int NCHAN_GANGLION = 4;
-
+String Filter_Type = "";
+String filt_txt;
 boolean hasIntroAnimation = true;
 PImage cog;
 Gif loadingGIF;
@@ -77,7 +78,7 @@ UDP udpRX;
 // Used in DataProcessing_User
 int previous_rand_index = 100; //Initialize to some temporary value that we will change later on.
 int current_rand_index = 100;
-
+int device_to_play = 0; //The device that will be played based on the letter_position, which is nothing more than an array of characters denoted as 'A', 'B', 'C', and so on.
 //choose where to get the EEG data
 final int DATASOURCE_CYTON = 0; // new default, data from serial with Accel data CHIP 2014-11-03
 final int DATASOURCE_GANGLION = 1;  //looking for signal from OpenBCI board via Serial/COM port, no Aux data
@@ -977,7 +978,7 @@ void systemUpdate() { // for updating data values and variables
             //-----------------------------------------------------------
             // gui.update(dataProcessing.data_std_uV, data_elec_imp_ohm);
             // topNav.update();
-            // updateGUIWidgets(); //####
+             //updateGUIWidgets(); //####
             //-----------------------------------------------------------
             //-----------------------------------------------------------
           }
