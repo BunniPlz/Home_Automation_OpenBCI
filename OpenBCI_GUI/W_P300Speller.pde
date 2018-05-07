@@ -34,7 +34,7 @@ class W_P300Speller extends Widget {
   int elapsedTime_ms = 0;
   private int maxRunCount = 60;  // temp magic number
   private int maxHitCount = 25;  // temp magic number
-  private int stimuliDelay = 1000; // millisecond delay between switching row and columns
+  private int stimuliDelay = 2000; // millisecond delay between switching row and columns
   private String fileString = "C:\\Users\\the0r\\Documents\\School\\CSUF\\EGCP598 BCI LAB\\Home_Automation_OpenBCI\\OpenBCI_GUI\\SavedData\\P300SpellerStimuliRecord.txt";
   private int[] hit_count;
   private int NUM_LETTERS = 5;
@@ -52,7 +52,7 @@ class W_P300Speller extends Widget {
   private int target_character_index = 0;
   private int target_index_variable = 0;
   private int class_runs = 0;
-  private final int MAX_RUNS = 5;
+  public final int MAX_RUNS = 5;
   public boolean classification = false; //Classify the signal
   public int[] target_indices;
   W_P300Speller(PApplet _parent){
@@ -106,7 +106,10 @@ class W_P300Speller extends Widget {
       // if elapsed time since last row and column change > stimuli delay, generate a new pair of row and col
       // otherwise, keep drawing the previous row/col
       if(countdownCurrent == 0) {  // after countdown has reached 0
-        
+        if(class_runs >= MAX_RUNS) { //End delay (delayed so that the program can save)
+          targetLetterHitCount = maxHitCount;
+          toggleSpeller();
+        }
         if(elapsedTime_ms > stimuliDelay) {
           elapsedTime_ms = 0;
           randomizeTargetLetter();
@@ -172,6 +175,7 @@ class W_P300Speller extends Widget {
                     resetSpeller();
                   } else {
                     classification = false;
+                    resetSpeller(); //Wait for 10 second delay to finish.
                   }
                   totalruns++;
                 }

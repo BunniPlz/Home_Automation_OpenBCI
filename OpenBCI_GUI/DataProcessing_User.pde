@@ -27,12 +27,13 @@ float [][][] Time_Data = new float[500][4][5]; //Hardcoded. From left to right, 
 //KNN classifier (stores the testing data).
 class KNNinfo {
    float Time;
-   float SNR_dB;
    float Peak;
+   boolean target_or_not;
  }
  class MinimumIndices {
    int MinIndex;
    float MinDistance;
+   boolean target;
  }
 class DetectedPeak { 
   int bin;
@@ -82,7 +83,7 @@ class DataProcessing_User {
   final int N = 5; //Maximum number of points we use to check (for extra accuracy).
   final int max_wait_runs = 5; //The amount of one second intervals that should be waited for.
   final int maxruns_persecond = 24;
-  final int option = 1; //Set to the option you want. If set to 1, it will do frequency-domain analysis. If set to 2, it will do time-domain analysis.
+  final int option = 3; //Set to the option you want. If set to 1, it will do frequency-domain analysis. If set to 2, it will do time-domain analysis (save data). If 3, it will read in the data and classify in time-domain.
   /*VARIABLES THAT KEEP TRACK OF TIMING*/
   int currentmillis = 0;
   int previousmillis = 0;
@@ -100,8 +101,13 @@ class DataProcessing_User {
   int num_skips = 0;
   int num_completions = 0;
   int num_runs = 0;
+  int count_runs = 0;
   float distance;
+  float[][] Stored_Data = new float[4][200];
+  boolean[][] TargetOrNot = new boolean[4][200];
+  float[][] Time = new float[4][200];
   float[] max_hit = new float[NUM_LETTERS_USED];
+  int letter_target_index = 0; //ONLY USED WHEN CLASSIFYING. ASSUMES INDEX 0-4 IN THAT ORDER TO CLASSIFY.
   //int[] sample_positions_ofletters;
   /*******************************************/
   boolean switchesActive = false;
@@ -118,6 +124,7 @@ class DataProcessing_User {
   final float max_allowed_peak_freq_Hz = 12.1f;
   final float[] processing_band_low_Hz = {8.0};
   final float[] processing_band_high_Hz = {12.0};
+  private int[] data_index = new int[4]; //Make indices for each channel to store data.
   //TextToSpeak[] Device = new TextToSpeak[MAX_DEVICES]; //Dummy initialization
   //DEVICE NAMES BELOW, MODIFY TO SUIT THE NAMES WE WANT
   /*The first array element will be active during the first character, the second array element
@@ -129,7 +136,6 @@ class DataProcessing_User {
   Button leftConfig = new Button(3*(width/4) - 65,height/4 - 120,20,20,"\\/",fontInfo.buttonLabel_size);
   Button midConfig = new Button(3*(width/4) + 63,height/4 - 120,20,20,"\\/",fontInfo.buttonLabel_size);
   Button rightConfig = new Button(3*(width/4) + 190,height/4 - 120,20,20,"\\/",fontInfo.buttonLabel_size);
-
 
   
   //class constructor
@@ -228,9 +234,50 @@ class DataProcessing_User {
           CheckSNR();
           break;
         case 2:
-          thread("SaveData");
+        count_runs++;
+        println("# runs so far: " + count_runs);
+        if(count_runs > 5) {
+          saveData();
+          int[] data_index = new int[4];
+          trial_count = 0;
+          count_runs = 0;
+          println("In save data");
+        }
+        else {
+          //Average data in this function and store in an array
+          //Here for classification, we assume the user focuses on A, then B, then C, then D, then E
+          for(int iChan = 0; iChan < 4; iChan++) {
+            for(int sample_position = 0; sample_position < 10; sample_position++) {
+              println("data index is " + data_index[iChan]);
+              Stored_Data[iChan][data_index[iChan]] = (Time_Data[sample_position][iChan][letter_target_index]/NUM_OF_TRIALS);
+              Time[iChan][data_index[iChan]] = (float(sample_position)/float(500))*(float(2));
+              TargetOrNot[iChan][data_index[iChan]++] = false;
+            }
+            for(int sample_position = 400; sample_position < 410; sample_position++) {
+              println("data index is " + data_index[iChan]);
+              Stored_Data[iChan][data_index[iChan]] = (Time_Data[sample_position][iChan][letter_target_index]/NUM_OF_TRIALS);
+              Time[iChan][data_index[iChan]] = (float(sample_position)/float(500))*(float(2));
+              TargetOrNot[iChan][data_index[iChan]++] = false;
+            }
+            for(int sample_position = 70; sample_position < 90; sample_position++) {
+              println("data index is " + data_index[iChan]);
+              Stored_Data[iChan][data_index[iChan]] = (Time_Data[sample_position][iChan][letter_target_index]/NUM_OF_TRIALS);
+              Time[iChan][data_index[iChan]] = (float(sample_position)/float(500))*(float(2));
+              TargetOrNot[iChan][data_index[iChan]++] = true;
+            }
+        } //40 samples in total for each channel at a time = 160 samples * 5 trials = 800 samples. So that means the first 40 samples of each deal with letter A, the next 40 deal with B, and so on.
+        if(count_runs == 5) {
+          println("Next run is the last one...");
+        } else { 
+        letter_target_index++; //Now change to the next letter.
+        println("Finish store " + str(count_runs-1));
+        trial_count = 0;
+        }
+        }
+        break;
         case 3:
-          thread("KNNAlgorithm");
+          loadTestData();
+          trial_count = 0;
           break;
         default:
         println("The max value num_runs goes to is: " + num_runs);
@@ -372,28 +419,106 @@ class DataProcessing_User {
 //Incomplete, meant to load in data.
 //*********************************************
    void loadTestData() {
+     BufferedReader reader;
+     String line;
      //1) Read from text file?
      //2) Store in Data array
      //3) Or, you can try storing directly when initialized (meaning this function isn't needed).
-     
+     float[] CompData_chan0 = new float[200];
+     boolean[] Target_chan0 = new boolean[200];
+     float[] time_chan0 = new float[200];
+     float[] CompData_chan1 = new float[200];
+     boolean[] Target_chan1 = new boolean[200];
+     float[] time_chan1 = new float[200];
+     float[] CompData_chan2 = new float[200];
+     boolean[] Target_chan2 = new boolean[200];
+     float[] time_chan2 = new float[200];
+     float[] CompData_chan3 = new float[200];
+     boolean[] Target_chan3 = new boolean[200];
+     float[] time_chan3 = new float[200];
+     reader = createReader("classify.txt");
+     for(int sample_position = 0; sample_position < 200; sample_position++) {
+       try {
+         line = reader.readLine();
+       } catch(IOException e) {
+          e.printStackTrace();
+          line = null;
+       }
+       if(line == null) {
+         break; //stop reading.
+       } else {
+         String[] pieces = split(line, " ");
+         CompData_chan0[sample_position] = float(pieces[0]);
+         Target_chan0[sample_position] = boolean(pieces[1]);
+         CompData_chan1[sample_position] = float(pieces[2]);
+         Target_chan1[sample_position] = boolean(pieces[3]);
+         CompData_chan2[sample_position] = float(pieces[4]);
+         Target_chan2[sample_position] = boolean(pieces[5]);
+         CompData_chan3[sample_position] = float(pieces[6]);
+         Target_chan3[sample_position] = boolean(pieces[7]);
+         time_chan0[sample_position] = float(pieces[8]);
+         time_chan1[sample_position] = float(pieces[9]);
+         time_chan2[sample_position] = float(pieces[10]);
+         time_chan3[sample_position] = float(pieces[11]);
+       }
+     }
+     //What samples should we take to
+     int[] Letter_count = new int[NUM_LETTERS_USED];
+       for(int letter_index = 0; letter_index < 5; letter_index++) {
+         for (int sample_position = 125; sample_position < 175; sample_position++) {
+           Letter_count[letter_index] += KNNAlgorithm(CompData_chan0, time_chan0, Target_chan0, (Time_Data[sample_position][0][letter_index]/NUM_OF_TRIALS), sample_position);
+           Letter_count[letter_index] += KNNAlgorithm(CompData_chan1, time_chan1, Target_chan1, (Time_Data[sample_position][1][letter_index]/NUM_OF_TRIALS), sample_position);
+           Letter_count[letter_index] += KNNAlgorithm(CompData_chan2, time_chan2, Target_chan2, (Time_Data[sample_position][2][letter_index]/NUM_OF_TRIALS), sample_position);
+           Letter_count[letter_index] += KNNAlgorithm(CompData_chan3, time_chan3, Target_chan3, (Time_Data[sample_position][3][letter_index]/NUM_OF_TRIALS), sample_position);
+         }
+       }
+       println("Done with loadTestData");
+   }
+//*******************************************************************
+//Save data
+//*******************************************************************
+   void saveData() {
+     PrintWriter output;
+     output = createWriter("classify.txt");
+       for(int data_position = 0; data_position < 200; data_position++) { 
+         //print data for each sample (of each channel) on the same line. The way it is stored in the file.
+         output.println(Stored_Data[0][data_position] + " " + TargetOrNot[0][data_position] + " " + Stored_Data[1][data_position] + " " + TargetOrNot[1][data_position] + " " + Stored_Data[2][data_position] + " " + TargetOrNot[2][data_position] + " " + Stored_Data[3][data_position] + " " + TargetOrNot[3][data_position] + " " + Time[0][data_position] + " " + Time[1][data_position] + " " + Time[2][data_position] + " " + Time[3][data_position]);  
+       }
+     output.flush();
+     output.close();
    }
 //************************************************************************
 //KNN Algorithm
 //************************************************************************
-   void KNNAlgorithm(float SNR, float amplitude, int letter_index, float Time){ //Perform KNN algorithm\ Change to boolean and say if it is a hit or miss.
+   int KNNAlgorithm(float[] Data, float[] Time, boolean[] TargetorNot, float amplitude, int sample_position){ //Perform KNN algorithm\ Change to boolean and say if it is a hit or miss.
    for (int i = 0; i < MAX_DATA_SAMPLES; i++) { //For each data point in the test samples, compute the distance
-     float x = (pow(Data[i].Time,2)-pow(Time,2)); //Compute the distance (for x on this line) between the points in data and the recently acquired data.
-     float y = (pow(Data[i].Peak,2)-pow(amplitude,2));
+     float x = (pow(Data[i],2)-pow(amplitude,2)); //Compute the distance (for x on this line) between the points in data and the recently acquired data.
+     float y = (pow(Time[i],2)-pow(float(sample_position/500),2)); //ANYWHERE THERE IS 500, CHANGE TO THE AMOUNT OF SAMPLES YOU TAKE.
      distance = sqrt(x + y);
      //Add multiple indices depending on the amount of checks we want to perform. For loop with N classifications.
      for (int j = 0; j < N; j++) { //For each index up to N, check if distance < minindex.distance to find the N closest samples.
        if (distance < CompData[j].MinDistance){
          CompData[j].MinDistance = distance;
          CompData[j].MinIndex = i;
+         CompData[j].target = TargetorNot[i];
        
        }
      }
    }
+     int hit_count_target = 0;
+     int hit_count_nottarget = 0;
+     for(int j = 0; j < N; j++) {
+       if(CompData[j].target) {
+         hit_count_target++;
+       } else {
+         hit_count_nottarget++;
+       }
+     }
+    if(hit_count_target > hit_count_nottarget) {
+      return 1; //If 1, then it increments the letter_count, making us decide which letter is the right one. Else, it does not increment.
+    } else {
+      return 0;
+    }
    }
 //**********************************************************
 //Frequency-Domain Analysis
@@ -458,8 +583,7 @@ class DataProcessing_User {
     //println("SNR: " + detectedPeak[Ichan].SNR_dB);
        //} // end loop over channels
   } //end method findPeakFrequency
-}
-
+    }
 //********************************************
 //Public functions below for threading
 //********************************************
@@ -494,6 +618,7 @@ class DataProcessing_User {
   //Different channels for each letter detection.
   //Different channels mean different EEG signals.
   //So representation for each letter detection has to be stored in various channels.
+  //Format of file written will be
   for(int Sample_index = 0; Sample_index < 500; Sample_index++) {
     for(int letter_index = 0; letter_index < 5; letter_index++) {
       for(int iChan = 0; iChan < 4; iChan++) {
