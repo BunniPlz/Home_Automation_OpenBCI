@@ -230,10 +230,10 @@ class DataProcessing_User {
     } else {
       if(trial_count == 24) { //compensate for the lack of data and check anyways.
         switch (option) {
-        case 1:
+        case 1: //Do Frequency analysis
           CheckSNR();
           break;
-        case 2:
+        case 2: //Save data
         count_runs++;
         println("# runs so far: " + count_runs);
         if(count_runs > 5) {
@@ -245,7 +245,7 @@ class DataProcessing_User {
         }
         else {
           //Average data in this function and store in an array
-          //Here for classification, we assume the user focuses on A, then B, then C, then D, then E
+          //Here for classification, we assume the user focuses on A, then B, then C, then D, then E. If this doesn't work, we can select some arbitrary letter for non-target and try with amplitudes around the same timeframe.
           for(int iChan = 0; iChan < 4; iChan++) {
             for(int sample_position = 0; sample_position < 10; sample_position++) {
               println("data index is " + data_index[iChan]);
@@ -253,6 +253,18 @@ class DataProcessing_User {
               Time[iChan][data_index[iChan]] = (float(sample_position)/float(500))*(float(2));
               TargetOrNot[iChan][data_index[iChan]++] = false;
             }
+            //for(int sample_position = 70; sample_position < 90; sample_position++) { //Just in case we need it for better classification.
+            //  println("data index is " + data_index[iChan]);
+            //  int letter_non_target_index;
+            //  if (letter_target_index == 0) {
+            //    letter_non_target_index = letter_target_index + 1;
+            //  } else {
+            //    letter_non_target_index = letter_target_index - 1;
+            //  }
+            //  Stored_Data[iChan][data_index[iChan]] = (Time_Data[sample_position][iChan][letter_non_target_index]/NUM_OF_TRIALS);
+            //  Time[iChan][data_index[iChan]] = (float(sample_position)/float(500))*(float(2));
+            //  TargetOrNot[iChan][data_index[iChan]++] = false;
+            //}
             for(int sample_position = 400; sample_position < 410; sample_position++) {
               println("data index is " + data_index[iChan]);
               Stored_Data[iChan][data_index[iChan]] = (Time_Data[sample_position][iChan][letter_target_index]/NUM_OF_TRIALS);
@@ -421,6 +433,7 @@ class DataProcessing_User {
    void loadTestData() {
      BufferedReader reader;
      String line;
+     //Loads in from test file into the arrays below. From there, it compares with the recently collected data to classify.
      //1) Read from text file?
      //2) Store in Data array
      //3) Or, you can try storing directly when initialized (meaning this function isn't needed).
@@ -448,30 +461,37 @@ class DataProcessing_User {
          break; //stop reading.
        } else {
          String[] pieces = split(line, " ");
-         CompData_chan0[sample_position] = float(pieces[0]);
-         Target_chan0[sample_position] = boolean(pieces[1]);
+         CompData_chan0[sample_position] = float(pieces[0]); //CompData specifies the amplitude axis.
+         Target_chan0[sample_position] = boolean(pieces[1]); //This (target_chan) just lets us know whether the stuff we are comparing to was a target or not.
          CompData_chan1[sample_position] = float(pieces[2]);
          Target_chan1[sample_position] = boolean(pieces[3]);
          CompData_chan2[sample_position] = float(pieces[4]);
          Target_chan2[sample_position] = boolean(pieces[5]);
          CompData_chan3[sample_position] = float(pieces[6]);
          Target_chan3[sample_position] = boolean(pieces[7]);
-         time_chan0[sample_position] = float(pieces[8]);
+         time_chan0[sample_position] = float(pieces[8]); //This (time_chan) specifies the time at which the sample was taken.
          time_chan1[sample_position] = float(pieces[9]);
          time_chan2[sample_position] = float(pieces[10]);
          time_chan3[sample_position] = float(pieces[11]);
        }
      }
+     println("Testing one value for CompData: " + CompData_chan0[0]);
+     println("Testing one value for Target_chan: " + Target_chan0[0]);
+     println("Testing one value for time_chan: " + time_chan0[100]);
      //What samples should we take to
      int[] Letter_count = new int[NUM_LETTERS_USED];
-       for(int letter_index = 0; letter_index < 5; letter_index++) {
+       for(int letter_index = 0; letter_index < 5; letter_index++) { //Letter index is less than 5 because we use 5 letters. We can change it later on to include a certain amount of letters, and use that as a constant.
          for (int sample_position = 125; sample_position < 175; sample_position++) {
+           //Note: rather than sending in time, it is much easier to send in the sample and calculate the time in the KNN algorithm, though we can change it later.
            Letter_count[letter_index] += KNNAlgorithm(CompData_chan0, time_chan0, Target_chan0, (Time_Data[sample_position][0][letter_index]/NUM_OF_TRIALS), sample_position);
            Letter_count[letter_index] += KNNAlgorithm(CompData_chan1, time_chan1, Target_chan1, (Time_Data[sample_position][1][letter_index]/NUM_OF_TRIALS), sample_position);
            Letter_count[letter_index] += KNNAlgorithm(CompData_chan2, time_chan2, Target_chan2, (Time_Data[sample_position][2][letter_index]/NUM_OF_TRIALS), sample_position);
            Letter_count[letter_index] += KNNAlgorithm(CompData_chan3, time_chan3, Target_chan3, (Time_Data[sample_position][3][letter_index]/NUM_OF_TRIALS), sample_position);
          }
        }
+       int chosenletter = findLettertoDetectSNR(Letter_count);
+       println("Index chosen is " + chosenletter);
+       VoiceCommand(chosenletter);
        println("Done with loadTestData");
    }
 //*******************************************************************
@@ -480,7 +500,7 @@ class DataProcessing_User {
    void saveData() {
      PrintWriter output;
      output = createWriter("classify.txt");
-       for(int data_position = 0; data_position < 200; data_position++) { 
+       for(int data_position = 0; data_position < 200; data_position++) { //Up to 200, that is the amount of samples stored in the text file.
          //print data for each sample (of each channel) on the same line. The way it is stored in the file.
          output.println(Stored_Data[0][data_position] + " " + TargetOrNot[0][data_position] + " " + Stored_Data[1][data_position] + " " + TargetOrNot[1][data_position] + " " + Stored_Data[2][data_position] + " " + TargetOrNot[2][data_position] + " " + Stored_Data[3][data_position] + " " + TargetOrNot[3][data_position] + " " + Time[0][data_position] + " " + Time[1][data_position] + " " + Time[2][data_position] + " " + Time[3][data_position]);  
        }
@@ -598,8 +618,10 @@ class DataProcessing_User {
     for(int channelNumber = 0; channelNumber < 4; channelNumber++) {
       if(dataBuffY_filtY_uV[channelNumber].length > numPoints){
         for (int i = 750; i < dataBuffY_filtY_uV[channelNumber].length; i++) {
+        //for (int i = 1000; i <dataBuffY_filtY_uV[channelNumber].length; i++) { //For short stimulus.
           float time = -(float)numSeconds + (float)(i-(dataBuffY_filtY_uV[channelNumber].length-1250))*timeBetweenPoints + 2;
           if(p < 500) {
+          //if(p <250){ //For short stimulus.
             //println("Test data 1 : " + dataBuffY_filtY_uV[channelNumber][i]);
             Time_Data[p++][channelNumber][previous_letter_index] += dataBuffY_filtY_uV[channelNumber][i]; //add to slowly get rms.
             //println("Time Data is: " + Time_Data[p-1][channelNumber][previous_letter_index]);
@@ -612,30 +634,30 @@ class DataProcessing_User {
 //**************************************************
 //Function to save data into text. Still incomplete.
 //**************************************************
-  void SaveData() {
-  //FileWriter f = new FileWriter(filename, appendData);
-  //FileWriter b = new FileWriter(filename2, appendData);
-  //Different channels for each letter detection.
-  //Different channels mean different EEG signals.
-  //So representation for each letter detection has to be stored in various channels.
-  //Format of file written will be
-  for(int Sample_index = 0; Sample_index < 500; Sample_index++) {
-    for(int letter_index = 0; letter_index < 5; letter_index++) {
-      for(int iChan = 0; iChan < 4; iChan++) {
+//  void SaveData() {
+//  //FileWriter f = new FileWriter(filename, appendData);
+//  //FileWriter b = new FileWriter(filename2, appendData);
+//  //Different channels for each letter detection.
+//  //Different channels mean different EEG signals.
+//  //So representation for each letter detection has to be stored in various channels.
+//  //Format of file written will be
+//  for(int Sample_index = 0; Sample_index < 500; Sample_index++) {
+//    for(int letter_index = 0; letter_index < 5; letter_index++) {
+//      for(int iChan = 0; iChan < 4; iChan++) {
         
-      }
+//      }
     
-    }
-  }
-  }
-  void fwrite(FileWriter f, String data, boolean appendData){
-  //Path file = Paths.get(filename);
-    try
-    {
-      f.write(data);
-    }
-    catch(Exception e)
-    {
-        System.out.println("Message: " + e);
-    }
-}
+//    }
+//  }
+//  }
+//  void fwrite(FileWriter f, String data, boolean appendData){
+//  //Path file = Paths.get(filename);
+//    try
+//    {
+//      f.write(data);
+//    }
+//    catch(Exception e)
+//    {
+//        System.out.println("Message: " + e);
+//    }
+//}
