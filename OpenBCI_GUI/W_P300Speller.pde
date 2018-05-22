@@ -170,8 +170,10 @@ class W_P300Speller extends Widget {
                   for (int p = 0; p < 25; p++) {
                     println("Letter #" + p + ": " + letter_pattern[p]);
                   }
-                  class_runs++;
-                  if(!classification || (class_runs < MAX_RUNS)) { //If we are not classifying or classification runs has not reached the maximum amount we want to do, then we will continue to utilize the speller.
+                  if (classification && (class_runs < MAX_RUNS)) {
+                    class_runs++;
+                    resetSpeller();
+                  } else if(!classification) { //If we are not classifying or classification runs has not reached the maximum amount we want to do, then we will continue to utilize the speller.
                     resetSpeller();
                   } else {
                     classification = false;
@@ -215,72 +217,54 @@ class W_P300Speller extends Widget {
   }
   
   void resetSpeller() {
+    println("Reset");
+    for(int i = 0; i < 5; i++) { //Reset hit_count array keeping track of all letters.
+      hit_count[i] = 0;
+    }
     runcount = 0;
     lastRuncount = 0;
     countdownCurrent = countdownDuration/1000;
     targetLetterHitCount = 0;
-    randomizeTargetLetter();
+    //randomizeTargetLetter(); //No need to randomize early.
     elapsedTime_ms = 0;
-    for(int i = 0; i < 5; i++) { //Reset hit_count array keeping track of all letters.
-      hit_count[i] = 0;
-    }
   }
   
   void randomizeTargetLetter() {
     targetLetterRow = int(random(MAX_ROW));
-    float dice_roll = random(0,100);
-    if(dice_roll < 20 && dice_roll >= 0 && hit_count[0] < 5 && previous_character != 'A') {  //As long as hit_count is less than 5 for 'A', 'B', 'C', 'D', 'E' for indices 0, 1, 2, 3, 4 respectively, then we can set it to the desired letter of that condition.
-      targetLetterColumn = randcol = 0;
-      hit_count[0]++;
-      previous_character = 'A';
-    }
-    else if (dice_roll >= 20 - 20*(hit_count[0]/5) && dice_roll < 40 && hit_count[1] < 5 && previous_character != 'B') {
-      targetLetterColumn = randcol = 1;
-      hit_count[1]++;
-      previous_character = 'B';
-    }
-    else if (dice_roll >= 40 - 40*(hit_count[1]/5) && dice_roll < 60 && hit_count[2] < 5 && previous_character != 'C') {
-      targetLetterColumn = randcol = 2;
-      hit_count[2]++;
-      previous_character = 'C';
-    }
-    else if (dice_roll >= 60 - 60*(hit_count[2]/5)  && dice_roll < 80 && hit_count[3] < 5 && previous_character != 'D') {
-     targetLetterColumn =  randcol = 3;
-      hit_count[3]++;
-      previous_character = 'D';
-    }
-    else if (dice_roll >= 80 - 80*(hit_count[3]/5) && dice_roll < 100 && hit_count[4] < 5 && previous_character != 'E') {
-      targetLetterColumn = randcol = 4;
-      hit_count[4]++;
-      previous_character = 'E';
-    }
-    else if (dice_roll_success == false) {
-      if (hit_count[0] < 5 && previous_character != 'A'){
-      targetLetterColumn =  randcol = 0;
-        hit_count[0]++;
-        previous_character = 'A';
-      }
-      else if (hit_count[1] < 5 && previous_character != 'B'){
-      targetLetterColumn =  randcol = 1;
-        hit_count[1]++;
-        previous_character = 'B';
-      }
-      else if (hit_count[2] < 5 && previous_character != 'C'){
-       targetLetterColumn = randcol = 2;
-        hit_count[2]++;
-        previous_character = 'C';
-      }
-      else if (hit_count[3] < 5 && previous_character != 'D'){
-      targetLetterColumn = randcol = 3;
-        hit_count[3]++;
-        previous_character = 'D';
-      }
-      else if (hit_count[4] < 5 && previous_character != 'E'){
-       targetLetterColumn = randcol = 4;
-        hit_count[4]++;
-        previous_character = 'E';
+  
+    boolean good_run = false;
+    do {
+    float[] dice_roll = new float[5];
+    for(int p = 0; p < 5; p++) {
+      if (hit_count[p] < 5) {
+        dice_roll[p] = random(0, 100);
+      } else {
+        dice_roll[p] = 0;
       }
     }
+     int max_letter_index = 0;
+     float max_roll = 0;
+     for(int letter_position = 0; letter_position < NUM_LETTERS; letter_position++) {
+       if (dice_roll[letter_position] > max_roll) {
+         max_roll = dice_roll[letter_position];
+         max_letter_index = letter_position;
+       }
+     }
+    if(previous_character != characters[max_letter_index]) {
+      targetLetterColumn = randcol = max_letter_index;
+      hit_count[max_letter_index]++;
+      previous_character = characters[max_letter_index];
+      good_run = true;
+    } else if (previous_character == characters[max_letter_index] && runcount >= 23) { 
+      //Special case
+      targetLetterColumn = randcol = max_letter_index;
+      hit_count[max_letter_index]++;
+      previous_character = characters[max_letter_index];
+      good_run = true;
+    }else {
+      good_run = false; //RUN AGAIN.
+    }
+    }while(good_run != true);
     current_rand_index = (randcol + randrow*MAX_COLUMN);
     println("RUN # : " + runcount);
     println("NOW ON INDEX " + current_rand_index);
@@ -289,7 +273,7 @@ class W_P300Speller extends Widget {
     dice_roll_success = false;
     targetLetterIndex = randcol;
 
-    targetLetterIndex = targetLetterColumn+(targetLetterRow*MAX_COLUMN);
+    //targetLetterIndex = targetLetterColumn+(targetLetterRow*MAX_COLUMN);
   
   }
 
