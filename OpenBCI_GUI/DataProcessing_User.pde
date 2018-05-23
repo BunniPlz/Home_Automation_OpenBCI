@@ -81,10 +81,11 @@ class DataProcessing_User {
   final int NUM_OF_TRIALS = 5; //NUMBER OF TRIALS FOR TARGET DETECTION
   final int NUM_LETTERS_USED = 5;
   final int MAX_DATA_SAMPLES = 200; //Arbitrary number of test samples for now. EDIT LATER
-  final int N = 5; //Maximum number of points we use to check (for extra accuracy).
+  final int N = 3; //Maximum number of points we use to check (for extra accuracy).
   final int max_wait_runs = 5; //The amount of one second intervals that should be waited for.
   final int maxruns_persecond = 24;
-  final int option = 1; //Set to the option you want. If set to 1, it will do frequency-domain analysis. If set to 2, it will do time-domain analysis (save data). If 3, it will read in the data and classify in time-domain.
+  final int option = 2; //Set to the option you want. If set to 1, it will do frequency-domain analysis. If set to 2, it will do time-domain analysis (save data). If 3, it will read in the data and classify in time-domain.
+  final int SAMPLE_SIZE = 48; //24 samples per second, so change by the amount of seconds that you let the stimulus remain.
   /*VARIABLES THAT KEEP TRACK OF TIMING*/
   int currentmillis = 0;
   int previousmillis = 0;
@@ -94,9 +95,9 @@ class DataProcessing_User {
   /*VARIABLES THAT HOLD DATA FOR EACH CHANNEL*/
   //float[][][] rms = new float[24][NUM_CHANNELS_USED][NUM_LETTERS_USED]; //24 samples since this part of the program is only called 240 times in 10 seconds, which is 24 times per second.
   //float[][][] background_rms = new float[24][NUM_CHANNELS_USED][NUM_LETTERS_USED]; //4 is the number of channels used.
-  float[][][] rms = new float[48][NUM_CHANNELS_USED][NUM_LETTERS_USED]; //24 samples since this part of the program is only called 240 times in 10 seconds, which is 24 times per second.
-  float[][][] background_rms = new float[48][NUM_CHANNELS_USED][NUM_LETTERS_USED]; //4 is the number of channels used.
-  float[][][] std_uV = new float[48][NUM_CHANNELS_USED][NUM_LETTERS_USED]; //[Max_samples][# max channels][max num of letters]
+  float[][][] rms = new float[SAMPLE_SIZE][NUM_CHANNELS_USED][NUM_LETTERS_USED]; //24 samples since this part of the program is only called 240 times in 10 seconds, which is 24 times per second.
+  float[][][] background_rms = new float[SAMPLE_SIZE][NUM_CHANNELS_USED][NUM_LETTERS_USED]; //4 is the number of channels used.
+  float[][][] std_uV = new float[SAMPLE_SIZE][NUM_CHANNELS_USED][NUM_LETTERS_USED]; //[Max_samples][# max channels][max num of letters]
   int sample_position = 0;
   int trial_count = 0; //Count the number of trials we have stored.
   int currentruncount = 0;
@@ -104,7 +105,7 @@ class DataProcessing_User {
   int num_completions = 0;
   int num_runs = 0;
   int count_runs = 0;
-  float time_frame = 1f;
+  float time_frame = 2f; //Change if you change the amount of time a stimulus stays.
   float distance;
   float[][] Stored_Data = new float[4][240];
   boolean[][] TargetOrNot = new boolean[4][240];
@@ -167,10 +168,7 @@ class DataProcessing_User {
      for (int i = 0; i < MAX_DATA_SAMPLES; i++) {
        Data[i] = new KNNinfo(); //Needs a way to initialize the test data.
     }
-    for (int i = 0; i < N; i++) {
-      CompData[i] = new MinimumIndices();
-      CompData[i].MinDistance = 100000; //Dummy Initialization.
-    }
+    
     //Load KNN data here
     //sample_positions_ofletters = new int[25];
   }
@@ -187,15 +185,6 @@ class DataProcessing_User {
     //using the sample values that have already been filtered, as will be plotted on the display
     float EEG_value_uV;
     currentmillis = millis();
-    //println("Filter type is " + dataProcessing.getFilterDescription());
-    //if(w_p300speller.classification && !file_active) {
-    //  //INITIALIZE FILE.
-      
-    //  file_active = true;
-    //} else if(!w_p300speller.classification && file_active) {
-      
-    //  file_active = false;
-    //}
     if(((currentmillis-previousmillis)/1000) >= 1) { //If a second has passed, enter.
       previousmillis=currentmillis;
       if(wait == true) { //If wait is true from detection, increment until we can begin again.
@@ -231,17 +220,12 @@ class DataProcessing_User {
           //thread("Collect");
         } 
       }
-        //if (sample_position < 24) { //Continue to collect data only if it has not finished that sample early.
-        if (sample_position < 48) {
+        if (sample_position < SAMPLE_SIZE) {
         processMultiChannel(data_newest_uV, data_long_uV, data_forDisplay_uV, fftData);
-        }
-        if(num_runs == 0) {
-          //println("reset does not happen during the first run, num_runs = " + num_runs);
-        }
+        } 
     } else {
-      //println("Checking condition trial_count");
+    //  //println("Checking condition trial_count");
       if(trial_count == 24) { //compensate for the lack of data and check anyways.
-      println("Checking Trial_count condition");
         switch (option) {
        
         case 1: //Do Frequency analysis
@@ -275,10 +259,16 @@ class DataProcessing_User {
               do {
                 letter_non_target_index = int(random(NUM_LETTERS_USED));
               }while(letter_non_target_index == letter_target_index);
-            for(int sample_position = 0; sample_position < 24; sample_position++) { //Just in case we need it for better classification.
+            for(int sample_position = 0; sample_position < 6; sample_position++) { //Just in case we need it for better classification.
               
-              Stored_Data[iChan][data_index[iChan]] = (std_uV[sample_position][iChan][letter_non_target_index]/NUM_OF_TRIALS);
-              Time[iChan][data_index[iChan]] = (float(sample_position)/float(24))*(time_frame);
+              Stored_Data[iChan][data_index[iChan]] = (rms[sample_position][iChan][letter_non_target_index]/NUM_OF_TRIALS);
+              Time[iChan][data_index[iChan]] = (float(sample_position)/float(SAMPLE_SIZE))*(time_frame);
+              TargetOrNot[iChan][data_index[iChan]++] = false;
+            }
+            for(int sample_position = 30; sample_position < 48; sample_position++) { //Just in case we need it for better classification.
+              
+              Stored_Data[iChan][data_index[iChan]] = (rms[sample_position][iChan][letter_non_target_index]/NUM_OF_TRIALS);
+              Time[iChan][data_index[iChan]] = (float(sample_position)/float(SAMPLE_SIZE))*(time_frame);
               TargetOrNot[iChan][data_index[iChan]++] = false;
             }
             //for(int sample_position = 400; sample_position < 410; sample_position++) {
@@ -287,10 +277,10 @@ class DataProcessing_User {
             //  Time[iChan][data_index[iChan]] = (float(sample_position)/float(500))*(float(2));
             //  TargetOrNot[iChan][data_index[iChan]++] = false;
             //}
-            for(int sample_position = 0; sample_position < 24; sample_position++) {
+            for(int sample_position = 6; sample_position < 30; sample_position++) {
               println("data index is " + data_index[iChan]);
-              Stored_Data[iChan][data_index[iChan]] = (std_uV[sample_position][iChan][letter_target_index]/NUM_OF_TRIALS);
-              Time[iChan][data_index[iChan]] = (float(sample_position)/float(24))*(time_frame);
+              Stored_Data[iChan][data_index[iChan]] = (rms[sample_position][iChan][letter_target_index]/NUM_OF_TRIALS);
+              Time[iChan][data_index[iChan]] = (float(sample_position)/float(SAMPLE_SIZE))*(time_frame);
               TargetOrNot[iChan][data_index[iChan]++] = true;
             }
             
@@ -324,7 +314,7 @@ class DataProcessing_User {
 //**********************************************
   public void processMultiChannel(float[][] data_newest_uV, float[][]data_long_uV, float[][] data_forDisplay_uV, FFT[] fftData) {
     boolean isDetected = false;
-    if (sample_position < 48 && previous_rand_index < MAX_DEVICES) { //As long as previous_rand_index is equal to its initial value of 100 (or larger than MAX_DEVICES), it will not begin reading data (option 1), in this case, we have detection checks only when the index is less than MAX_DEVICES (5) 
+    if (sample_position < SAMPLE_SIZE && previous_rand_index < MAX_DEVICES) { //As long as previous_rand_index is equal to its initial value of 100 (or larger than MAX_DEVICES), it will not begin reading data (option 1), in this case, we have detection checks only when the index is less than MAX_DEVICES (5) 
     //if (sample_position < 24 && previous_rand_index < MAX_DEVICES) {
      for(int Ichan = 0; Ichan < NUM_CHANNELS_USED; Ichan++) {
        std_uV[sample_position][Ichan][previous_rand_index] +=  dataProcessing.data_std_uV[Ichan];
@@ -333,7 +323,7 @@ class DataProcessing_User {
        
      }
      sample_position++;
-     if(sample_position == 48) { //If we finish all samples, increment number of completed runs.
+     if(sample_position == SAMPLE_SIZE) { //If we finish all samples, increment number of completed runs.
        num_completions++;
      }
     } else {
@@ -428,7 +418,7 @@ class DataProcessing_User {
       //Increment through all the data collected for each
       for(int letter_position = 0; letter_position < NUM_LETTERS_USED; letter_position++) {
         //max_hit[letter_position] = rms[5][0][letter_position];
-        for(int t = 0; t < 48; t++) { // Start at sample 5 and go to sample 36. Checking samples of interest for the P300. //Check these samples for a spike at that time.
+        for(int t = 0; t < SAMPLE_SIZE; t++) { // Start at sample 5 and go to sample 36. Checking samples of interest for the P300. //Check these samples for a spike at that time.
           
           for(int Ichan = 0; Ichan < 4; Ichan++) {
          
@@ -495,6 +485,7 @@ class DataProcessing_User {
    void VoiceCommand(int letter_to_trigger) {
      device_to_play = letter_to_trigger;
      thread("Trigger");
+     println("Trigger on letter index " + device_to_play);
      println("Done with command");
      trial_count = 0;
      sample_position = 0;
@@ -505,8 +496,8 @@ class DataProcessing_User {
      //float[][][] rms = new float[24][NUM_CHANNELS_USED][NUM_LETTERS_USED]; //24 samples since this part of the program is only called 240 times in 10 seconds, which is 24 times per second.
      //float[][][] background_rms = new float[24][NUM_CHANNELS_USED][NUM_LETTERS_USED];//4 is the number of channels used.
      //Below is 48 sample reinitialization case.
-     float[][][] rms = new float[48][NUM_CHANNELS_USED][NUM_LETTERS_USED]; //24 samples since this part of the program is only called 240 times in 10 seconds, which is 24 times per second.
-     float[][][] background_rms = new float[48][NUM_CHANNELS_USED][NUM_LETTERS_USED];
+     float[][][] rms = new float[SAMPLE_SIZE][NUM_CHANNELS_USED][NUM_LETTERS_USED]; //24 samples since this part of the program is only called 240 times in 10 seconds, which is 24 times per second.
+     float[][][] background_rms = new float[SAMPLE_SIZE][NUM_CHANNELS_USED][NUM_LETTERS_USED];
    }
    
 //*********************************************
@@ -515,6 +506,7 @@ class DataProcessing_User {
    void loadTestData() {
      BufferedReader reader;
      String line;
+     float factor = 1000f;
      //Loads in from test file into the arrays below. From there, it compares with the recently collected data to classify.
      //1) Read from text file?
      //2) Store in Data array
@@ -564,13 +556,13 @@ class DataProcessing_User {
        } else {
          String[] pieces = split(line, " ");
          //Shrink this down to only a single class (for each channel) once initial testing is done.
-         CompData_chan0[sample_position] = float(pieces[0]); //CompData specifies the amplitude axis.
+         CompData_chan0[sample_position] = float(pieces[0])*factor; //CompData specifies the amplitude axis.
          Target_chan0[sample_position] = boolean(pieces[1]); //This (target_chan) just lets us know whether the stuff we are comparing to was a target or not.
-         CompData_chan1[sample_position] = float(pieces[2]);
+         CompData_chan1[sample_position] = float(pieces[2])*factor;
          Target_chan1[sample_position] = boolean(pieces[3]);
-         CompData_chan2[sample_position] = float(pieces[4]);
+         CompData_chan2[sample_position] = float(pieces[4])*factor;
          Target_chan2[sample_position] = boolean(pieces[5]);
-         CompData_chan3[sample_position] = float(pieces[6]);
+         CompData_chan3[sample_position] = float(pieces[6])*factor;
          Target_chan3[sample_position] = boolean(pieces[7]);
          
          //CompData_chan4[sample_position] = float(pieces[8]); //CompData specifies the amplitude axis.
@@ -598,18 +590,15 @@ class DataProcessing_User {
          
        }
      }
-     println("Testing one value for CompData: " + CompData_chan0[0]);
-     println("Testing one value for Target_chan: " + Target_chan0[0]);
-     println("Testing one value for time_chan: " + time_chan0[100]);
      //What samples should we take to
      int[] Letter_count = new int[NUM_LETTERS_USED];
        for(int letter_index = 0; letter_index < 5; letter_index++) { //Letter index is less than 5 because we use 5 letters. We can change it later on to include a certain amount of letters, and use that as a constant.
-         for (int sample_position = 0; sample_position < 48; sample_position++) { //Change to match the amount of samples.
+         for (int sample_position = 0; sample_position < SAMPLE_SIZE; sample_position++) { //Change to match the amount of samples.
            //Note: rather than sending in time, it is much easier to send in the sample and calculate the time in the KNN algorithm, though we can change it later.
-           Letter_count[letter_index] += KNNAlgorithm(CompData_chan0, time_chan0, Target_chan0, (std_uV[sample_position][0][letter_index]/NUM_OF_TRIALS), sample_position);
-           Letter_count[letter_index] += KNNAlgorithm(CompData_chan1, time_chan1, Target_chan1, (std_uV[sample_position][1][letter_index]/NUM_OF_TRIALS), sample_position);
-           Letter_count[letter_index] += KNNAlgorithm(CompData_chan2, time_chan2, Target_chan2, (std_uV[sample_position][2][letter_index]/NUM_OF_TRIALS), sample_position);
-           Letter_count[letter_index] += KNNAlgorithm(CompData_chan3, time_chan3, Target_chan3, (std_uV[sample_position][3][letter_index]/NUM_OF_TRIALS), sample_position);
+           Letter_count[letter_index] += KNNAlgorithm(CompData_chan0, time_chan0, Target_chan0, (factor*rms[sample_position][0][letter_index]/NUM_OF_TRIALS), sample_position);
+           Letter_count[letter_index] += KNNAlgorithm(CompData_chan1, time_chan1, Target_chan1, (factor*rms[sample_position][1][letter_index]/NUM_OF_TRIALS), sample_position);
+           Letter_count[letter_index] += KNNAlgorithm(CompData_chan2, time_chan2, Target_chan2, (factor*rms[sample_position][2][letter_index]/NUM_OF_TRIALS), sample_position);
+           Letter_count[letter_index] += KNNAlgorithm(CompData_chan3, time_chan3, Target_chan3, (factor*rms[sample_position][3][letter_index]/NUM_OF_TRIALS), sample_position);
            
            //Letter_count[letter_index] += KNNAlgorithm(CompData_chan4, time_chan4, Target_chan4, (Time_Data[sample_position][4][letter_index]/NUM_OF_TRIALS), sample_position);
            //Letter_count[letter_index] += KNNAlgorithm(CompData_chan5, time_chan5, Target_chan5, (Time_Data[sample_position][5][letter_index]/NUM_OF_TRIALS), sample_position);
@@ -617,12 +606,18 @@ class DataProcessing_User {
            //Letter_count[letter_index] += KNNAlgorithm(CompData_chan7, time_chan7, Target_chan7, (Time_Data[sample_position][7][letter_index]/NUM_OF_TRIALS), sample_position);
          }
        }
+       for (int letter_index = 0; letter_index < 5; letter_index++) {
+         println("Hitcount for letter " + letter_index + " is " + Letter_count[letter_index]);
+       }
        int chosenletter = findLettertoDetectSNR(Letter_count);
        println("Index chosen is " + chosenletter);
        VoiceCommand(chosenletter);
        println("Done with loadTestData");
        //Time_Data = new float[125][4][5]; //Clear Time_Data.
-       std_uV = new float[48][NUM_CHANNELS_USED][NUM_LETTERS_USED]; //Clear std_uV
+        println("rms test from letter D #: " + (rms[5][0][3]/NUM_OF_TRIALS));
+       //std_uV = new float[48][NUM_CHANNELS_USED][NUM_LETTERS_USED]; //Clear std_uV
+       rms = new float[SAMPLE_SIZE][NUM_CHANNELS_USED][NUM_LETTERS_USED];
+       //println("std_uV test #: " + std_uV[0][0][0]);
    }
 //*******************************************************************
 //Save data
@@ -642,11 +637,18 @@ class DataProcessing_User {
 //KNN Algorithm
 //************************************************************************
    int KNNAlgorithm(float[] Data, float[] Time, boolean[] TargetorNot, float amplitude, int sample_position){ //Perform KNN algorithm\ Change to boolean and say if it is a hit or miss.
+    for (int i = 0; i < N; i++) {
+      CompData[i] = new MinimumIndices();
+      CompData[i].MinDistance = 100000; //Dummy Initialization.
+    }
    for (int i = 0; i < MAX_DATA_SAMPLES; i++) { //For each data point in the test samples, compute the distance
     if (Data[i] > 0) { 
-     float x = (pow(Data[i],2)-pow(amplitude,2)); //Compute the distance (for x on this line) between the points in data and the recently acquired data.
-     float y = (pow(Time[i],2)-pow((float(sample_position/125)*time_frame),2)); //ANYWHERE THERE IS 500, CHANGE TO THE AMOUNT OF SAMPLES YOU TAKE.
+     float x = abs((pow(Data[i],2)-pow(amplitude,2))); //Compute the distance (for x on this line) between the points in data and the recently acquired data.
+     //println("X : " + x);
+     float y = abs((pow(Time[i],2)-pow((float(sample_position/48)*time_frame),2))); //ANYWHERE THERE IS 500, CHANGE TO THE AMOUNT OF SAMPLES YOU TAKE.
+     //println("Y : " + y);
      distance = sqrt(x + y);
+     //println("Distance : " + distance);
      //Add multiple indices depending on the amount of checks we want to perform. For loop with N classifications.
      for (int j = 0; j < N; j++) { //For each index up to N, check if distance < minindex.distance to find the N closest samples.
        if (distance < CompData[j].MinDistance){
@@ -736,7 +738,7 @@ class DataProcessing_User {
     //println("SNR: " + detectedPeak[Ichan].SNR_dB);
        //} // end loop over channels
   } //end method findPeakFrequency
-    }
+   }
 //********************************************
 //Public functions below for threading
 //********************************************
