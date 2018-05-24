@@ -141,7 +141,8 @@ class DataProcessing_User {
   /*The first array element will be active during the first character, the second array element
   element will be active during the second character, and so on.*/
   //In the string array below, devices will correspond to the characters in the array from A to Z, with A representing the first element
-  final String[] Devices = new String[]{"A", "B", "C", "D", "E"}; //Test string incorporating the device names.
+  //final String[] Devices = new String[]{"A", "B", "C", "D", "E"}; //Test string incorporating the device names
+  final String[] Devices = new String[]{"A", "B", "C", "Door", "E"};
   KNNinfo[] Data = new KNNinfo[MAX_DATA_SAMPLES];
   MinimumIndices[] CompData = new MinimumIndices[N];
   Button leftConfig = new Button(3*(width/4) - 65,height/4 - 120,20,20,"\\/",fontInfo.buttonLabel_size);
@@ -571,7 +572,7 @@ class DataProcessing_User {
      //2) Store in Data array
      //3) Or, you can try storing directly when initialized (meaning this function isn't needed).
      float[] CompData_chan0 = new float[10];
-     boolean[] Target_chan0 = new boolean[5];
+     boolean[] Target_chan0 = new boolean[10];
      
      float[] CompData_chan1 = new float[10];
      boolean[] Target_chan1 = new boolean[10];
@@ -582,8 +583,8 @@ class DataProcessing_User {
      float[] CompData_chan3 = new float[10];
      boolean[] Target_chan3 = new boolean[10];
      
-     reader = createReader("classifyaverage.txt");
-     for(int sample_position = 0; sample_position < 5; sample_position++) {
+     reader = createReader("Bradclassification80%accuracy.txt");
+     for(int sample_position = 0; sample_position < 10; sample_position++) {
        try {
          line = reader.readLine();
        } catch(IOException e) {
@@ -610,7 +611,8 @@ class DataProcessing_User {
      //What samples should we take to
      int[] Letter_count = new int[NUM_LETTERS_USED];
        for(int letter_index = 0; letter_index < 5; letter_index++) { //Letter index is less than 5 because we use 5 letters. We can change it later on to include a certain amount of letters, and use that as a constant.
-         for (int sample_position = 0; sample_position < SAMPLE_SIZE; sample_position++) { //Change to match the amount of samples.
+         //for (int sample_position = 0; sample_position < SAMPLE_SIZE; sample_position++) { //Change to match the amount of samples.
+         //for (int sample_position = 0; sample_position < 2; sample_position++) {
            //Note: rather than sending in time, it is much easier to send in the sample and calculate the time in the KNN algorithm, though we can change it later.
            Letter_count[letter_index] += KNNAlgorithm(CompData_chan0, Target_chan0, (factor*rms[0][letter_index]/(NUM_OF_TRIALS*SAMPLE_SIZE)), sample_position);
            Letter_count[letter_index] += KNNAlgorithm(CompData_chan1, Target_chan1, (factor*rms[1][letter_index]/(NUM_OF_TRIALS*SAMPLE_SIZE)), sample_position);
@@ -621,7 +623,7 @@ class DataProcessing_User {
            //Letter_count[letter_index] += KNNAlgorithm(CompData_chan5, time_chan5, Target_chan5, (Time_Data[sample_position][5][letter_index]/NUM_OF_TRIALS), sample_position);
            //Letter_count[letter_index] += KNNAlgorithm(CompData_chan6, time_chan6, Target_chan6, (Time_Data[sample_position][6][letter_index]/NUM_OF_TRIALS), sample_position);
            //Letter_count[letter_index] += KNNAlgorithm(CompData_chan7, time_chan7, Target_chan7, (Time_Data[sample_position][7][letter_index]/NUM_OF_TRIALS), sample_position);
-         }
+         //}
        }
        for (int letter_index = 0; letter_index < 5; letter_index++) {
          println("Hitcount for letter " + letter_index + " is " + Letter_count[letter_index]);

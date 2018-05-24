@@ -8,7 +8,7 @@ public class TextToSpeak {
   TTS tts;
 }
 final int MAX_DEVICES = 5;
-final int SMART_LOCK = 2; //Case of smart lock
+final int SMART_LOCK = 3; //Case of smart lock
 TextToSpeak[] Device = new TextToSpeak[MAX_DEVICES]; //Declare TextToSpeak objects
 /*This class serves to produce voices to activate smart devices in the home. Add
 in the variation of which device depending on the time.*/
