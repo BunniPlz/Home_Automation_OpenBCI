@@ -84,6 +84,7 @@ class DataProcessing_User {
   final int N = 3; //Maximum number of points we use to check (for extra accuracy).
   final int max_wait_runs = 5; //The amount of one second intervals that should be waited for.
   final int maxruns_persecond = 24;
+  //Options 5 and 6 do KNN algorithm training and testing respectively. Option 7 is without machine learning.
   final int option = 6; //Set to the option you want. If set to 1, it will do frequency-domain analysis. If set to 2, it will do time-domain analysis (save data). If 3, it will read in the data and classify in time-domain.
   final int SAMPLE_SIZE = 48; //24 samples per second, so change by the amount of seconds that you let the stimulus remain.
   /*VARIABLES THAT KEEP TRACK OF TIMING*/
@@ -360,6 +361,10 @@ class DataProcessing_User {
         
         case 6: //LOAD TEST DATA
         loadTestData();
+        break;
+        case 7:
+        evaluaterms();
+        break;
         default:
         println("The max value num_runs goes to is: " + num_runs);
         
@@ -522,6 +527,22 @@ class DataProcessing_User {
      }
      return maxRMS_letter_index;
    }
+//************************************************************************
+//Find letter with the highest RMS.
+//************************************************************************
+ int findmaxRMS(float[][] rms) {
+     int maxRMS_letter_index = 0;
+     float max_RMS = 0;
+     for(int letter_position = 0; letter_position < NUM_LETTERS_USED; letter_position++) {
+       for(int nchan = 0; nchan < 2; nchan++) {
+       if (rms[nchan][letter_position] > max_RMS) {
+         max_RMS = rms[nchan][letter_position];
+         maxRMS_letter_index = letter_position;
+       }
+       }
+     }
+     return maxRMS_letter_index;
+   }
 //**********************************************************************   
 //Compares SNR to find the most likely letter (frequency analysis based)
 //**********************************************************************
@@ -536,6 +557,17 @@ class DataProcessing_User {
        }
      }
      return max_hit_counts_index;
+   }
+   int findMaxHits(int[] hit_count) {
+     int hit_count_max = 0;
+     int max_hit_counts_index=0;
+     for(int letter_position = 0; letter_position < NUM_LETTERS_USED; letter_position++) { //5 represents the number of characters.
+       if(hit_count[letter_position] > hit_count_max) {
+         hit_count_max = hit_count[letter_position];
+         max_hit_counts_index = letter_position;
+       }
+     }
+     return hit_count_max;
    }
    
 //*******************************************
@@ -558,7 +590,22 @@ class DataProcessing_User {
      float[][][] rms = new float[SAMPLE_SIZE][NUM_CHANNELS_USED][NUM_LETTERS_USED]; //24 samples since this part of the program is only called 240 times in 10 seconds, which is 24 times per second.
      float[][][] background_rms = new float[SAMPLE_SIZE][NUM_CHANNELS_USED][NUM_LETTERS_USED];
    }
-   
+//************************************
+//Evaluate RMS without machine learning.
+//*************************************
+  void evaluaterms() {
+    float factor = 1000f;
+    for(int letter_index = 0; letter_index < 5; letter_index++) {
+      for (int nchan = 0; nchan < 2; nchan++) {
+        println("rms is " + rms[nchan][letter_index]);
+        rms[nchan][letter_index] = ((factor*rms[nchan][letter_index])/(NUM_OF_TRIALS*SAMPLE_SIZE));
+        println("rms of channel " + nchan + " for letter_index " + letter_index + " is " + rms[nchan][letter_index]);
+      }
+    }
+    int chosen_letter = findmaxRMS(rms);
+    VoiceCommand(chosen_letter);
+    rms = new float[NUM_CHANNELS_USED][NUM_LETTERS_USED];
+  } 
 //*********************************************
 //Incomplete, meant to load in data.
 //*********************************************
@@ -583,7 +630,7 @@ class DataProcessing_User {
      float[] CompData_chan3 = new float[10];
      boolean[] Target_chan3 = new boolean[10];
      
-     reader = createReader("Bradclassification80%accuracy.txt");
+     reader = createReader("classifyaverage.txt");
      for(int sample_position = 0; sample_position < 10; sample_position++) {
        try {
          line = reader.readLine();
@@ -628,9 +675,26 @@ class DataProcessing_User {
        for (int letter_index = 0; letter_index < 5; letter_index++) {
          println("Hitcount for letter " + letter_index + " is " + Letter_count[letter_index]);
        }
-       int chosenletter = findLettertoDetectSNR(Letter_count);
-       println("Index chosen is " + chosenletter);
-       VoiceCommand(chosenletter);
+       //Below is the stuff added to prevent false detections.
+       
+       int max_hitcount = findMaxHits(Letter_count); //Find highest hit count.
+       float temprms = 0; //Used to compare to the max value of rms to see if it's larger. If larger, then we will set it to be the maxrms (and set the maxindex with it as well).
+       float maxrms = 0; //Max value of rms. This max value will be judged to eventually find the letter with the highest rms. It will be selected as our desired letter.
+       int maxindex = 0; //Will be initialized after it enters the if statements (in the case that there is one highest, maxindex will be initialized and nothing else will happen.
+       for(int p = 0; p < 5; p++) {
+         if (Letter_count[p] == max_hitcount) { //If the hits of that letter equal the max # of hit counts, then we will check conditions in here.
+           temprms = (factor*rms[0][p]/(NUM_OF_TRIALS*SAMPLE_SIZE)) + (factor*rms[1][p]/(NUM_OF_TRIALS*SAMPLE_SIZE)) + (factor*rms[2][p]/(NUM_OF_TRIALS*SAMPLE_SIZE)) + (factor*rms[3][p]/(NUM_OF_TRIALS*SAMPLE_SIZE));
+           println("Total max rms of " + temprms + " for letter index " + p);
+           if(temprms >  maxrms) { //Set the new maxrms and letter index with the highest rms value.
+             maxrms = temprms;
+             maxindex = p;
+           }
+         }
+       }
+       
+       //End of false detection prevention code.
+       println("Index chosen is " + maxindex);
+       VoiceCommand(maxindex);
        println("Done with loadTestData");
        //Time_Data = new float[125][4][5]; //Clear Time_Data.
         println("rms test from letter D #: " + (rms[0][3]/NUM_OF_TRIALS));
@@ -680,7 +744,7 @@ class DataProcessing_User {
      //boolean[] Target_chan7 = new boolean[200];
      //float[] time_chan7 = new float[200];
      
-     reader = createReader("classify.txt");
+     reader = createReader("Bradclassification80%accuracy.txt");
      for(int sample_position = 0; sample_position < 240; sample_position++) {
        try {
          line = reader.readLine();
@@ -903,7 +967,7 @@ class DataProcessing_User {
       } //close if within frequency band
     } //close loop over bins
     // Store rms value and average over the number of trials.
-    if(option == 5 || option == 6) {
+    if(option == 5 || option == 6 || option == 7) {
       rms[Ichan][previous_rand_index] += detectedPeak[Ichan].rms_uV_perBin;
     } else {
       rms1[sample_position][Ichan][previous_rand_index] += detectedPeak[Ichan].rms_uV_perBin; //Multiply by 10000 to avoid truncation.

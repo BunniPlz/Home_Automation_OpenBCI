@@ -112,7 +112,10 @@ class W_P300Speller extends Widget {
         }
         if(elapsedTime_ms > stimuliDelay) {
           elapsedTime_ms = 0;
-          randomizeTargetLetter();
+          //randomizeTargetLetter();
+            if(letter_runs != 0) {
+              ChangeLetter();
+            }
             randrow = targetLetterRow;
             randcol = targetLetterColumn;
             current_rand_index = (randcol + randrow*MAX_COLUMN);
@@ -121,6 +124,7 @@ class W_P300Speller extends Widget {
               runcount++;
             }
             letter_runs++;
+            println("randcol is now " + randcol);
         }
       } else {
         if(elapsedTime_ms > 1000) {  // every second during countdown before starting speller
@@ -228,7 +232,28 @@ class W_P300Speller extends Widget {
     //randomizeTargetLetter(); //No need to randomize early.
     elapsedTime_ms = 0;
   }
-  
+  void ChangeLetter() {
+    switch(targetLetterColumn) {
+    case 0:
+    targetLetterColumn = 1;
+    break;
+    case 1:
+    targetLetterColumn = 2;
+    break;
+    case 2:
+    targetLetterColumn = 3;
+    break;
+    case 3:
+    targetLetterColumn = 4;
+    break;
+    case 4:
+    targetLetterColumn = 0;
+    break;
+    default:
+    break;
+    }
+    targetLetterIndex = targetLetterColumn;
+  }
   void randomizeTargetLetter() {
     targetLetterRow = int(random(MAX_ROW));
   
