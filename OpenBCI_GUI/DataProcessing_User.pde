@@ -84,8 +84,9 @@ class DataProcessing_User {
   final int N = 3; //Maximum number of points we use to check (for extra accuracy).
   final int max_wait_runs = 5; //The amount of one second intervals that should be waited for.
   final int maxruns_persecond = 24;
-  //Options 5 and 6 do KNN algorithm training and testing respectively. Option 7 is without machine learning.
-  final int option = 6; //Set to the option you want. If set to 1, it will do frequency-domain analysis. If set to 2, it will do time-domain analysis (save data). If 3, it will read in the data and classify in time-domain.
+  //Options 5 and 6 do KNN algorithm training and testing respectively with one averaged sample. Option 7 is without machine learning.
+  //Options 2 and 3 do KNN algorithm training and testing with multiple samples.
+  final int option = 3; //Set to the option you want. If set to 1, it will do frequency-domain analysis. If set to 2, it will do time-domain analysis (save data). If 3, it will read in the data and classify in time-domain.
   final int SAMPLE_SIZE = 48; //24 samples per second, so change by the amount of seconds that you let the stimulus remain.
   /*VARIABLES THAT KEEP TRACK OF TIMING*/
   int currentmillis = 0;
@@ -109,9 +110,9 @@ class DataProcessing_User {
   int count_runs = 0;
   float time_frame = 2f; //Change if you change the amount of time a stimulus stays.
   float distance;
-  float[][] Stored_Data = new float[4][240];
-  boolean[][] TargetOrNot = new boolean[4][240];
-  float[][] Time = new float[4][240];
+  float[][] Stored_Data = new float[2][96];
+  boolean[][] TargetOrNot = new boolean[2][96];
+  float[][] Time = new float[4][192];
   
   //float[][] Stored_Data = new float[8][200];
   //boolean[][] TargetOrNot = new boolean[8][200];
@@ -238,19 +239,18 @@ class DataProcessing_User {
         case 2: //Save data
         count_runs++;
         println("# runs so far: " + count_runs);
-        if(count_runs > 5) {
-          println("Saving Data");
-          saveData1();
-          int[] data_index = new int[4];
-          trial_count = 0;
-          count_runs = 0;
-          println("In save data");
-        }
-        else {
+        //if(count_runs > 5) {
+        //  println("Saving Data");
+        //  saveData1();
+        //  int[] data_index = new int[4];
+        //  trial_count = 0;
+        //  count_runs = 0;
+        //  println("In save data");
+        //}
           println("Saving Data while running");
           //Average data in this function and store in an array
           //Here for classification, we assume the user focuses on A, then B, then C, then D, then E. If this doesn't work, we can select some arbitrary letter for non-target and try with amplitudes around the same timeframe.
-          for(int iChan = 0; iChan < 4; iChan++) {
+          for(int iChan = 0; iChan < 2; iChan++) {
           //for(int iChan = 0; iChan < 8; iChan++) { //FOR 8 CHANNELS
           //  for(int sample_position = 0; sample_position < 10; sample_position++) {
           //    println("data index is " + data_index[iChan]);
@@ -258,20 +258,9 @@ class DataProcessing_User {
           //    Time[iChan][data_index[iChan]] = (float(sample_position)/float(500))*(float(2));
           //    //TargetOrNot[iChan][data_index[iChan]++] = false;
           //  }println("data index is " + data_index[iChan]);
-              int letter_non_target_index;
-              do {
-                letter_non_target_index = int(random(NUM_LETTERS_USED));
-              }while(letter_non_target_index == letter_target_index);
-            for(int sample_position = 0; sample_position < 6; sample_position++) { //Just in case we need it for better classification.
+            for(int sample_position = 0; sample_position < 48; sample_position++) { //Just in case we need it for better classification.
               
-              Stored_Data[iChan][data_index[iChan]] = (rms1[sample_position][iChan][letter_non_target_index]/NUM_OF_TRIALS);
-              Time[iChan][data_index[iChan]] = (float(sample_position)/float(SAMPLE_SIZE))*(time_frame);
-              TargetOrNot[iChan][data_index[iChan]++] = false;
-            }
-            for(int sample_position = 30; sample_position < 48; sample_position++) { //Just in case we need it for better classification.
-              
-              Stored_Data[iChan][data_index[iChan]] = (rms1[sample_position][iChan][letter_non_target_index]/NUM_OF_TRIALS);
-              Time[iChan][data_index[iChan]] = (float(sample_position)/float(SAMPLE_SIZE))*(time_frame);
+              Stored_Data[iChan][data_index[iChan]] = ((rms1[sample_position][iChan][0] + rms1[sample_position][iChan][1] + rms1[sample_position][iChan][3] + rms1[sample_position][iChan][4])/NUM_OF_TRIALS*4);
               TargetOrNot[iChan][data_index[iChan]++] = false;
             }
             //for(int sample_position = 400; sample_position < 410; sample_position++) {
@@ -280,21 +269,26 @@ class DataProcessing_User {
             //  Time[iChan][data_index[iChan]] = (float(sample_position)/float(500))*(float(2));
             //  TargetOrNot[iChan][data_index[iChan]++] = false;
             //}
-            for(int sample_position = 6; sample_position < 30; sample_position++) {
+            for(int sample_position = 0; sample_position < 48; sample_position++) {
               println("data index is " + data_index[iChan]);
               Stored_Data[iChan][data_index[iChan]] = (rms1[sample_position][iChan][letter_target_index]/NUM_OF_TRIALS);
-              Time[iChan][data_index[iChan]] = (float(sample_position)/float(SAMPLE_SIZE))*(time_frame);
               TargetOrNot[iChan][data_index[iChan]++] = true;
-            }
             
-        } //48 samples in total for each channel at a time = 192 samples * 5 trials = 960 samples. So that means the first 48 samples of each deal with letter A, the next 40 deal with B, and so on.
-        if(count_runs == 5) {
-          println("Next run is the last one...");
-        } else { 
-        letter_target_index++; //Now change to the next letter.
-        println("Finish store " + str(count_runs-1));
+        } 
+        
+        saveData1();
         trial_count = 0;
-        }
+        count_runs = 0;
+        println("In save data");
+      
+        // 96 samples for each channel. 96 samples * 2 channels. 48 samples in total for each channel at a time = 192 samples * 5 trials = 960 samples. So that means the first 48 samples of each deal with letter A, the next 40 deal with B, and so on.
+        //if(count_runs == 5) {
+        //  println("Next run is the last one...");
+        //} else { 
+        //letter_target_index++; //Now change to the next letter.
+        //println("Finish store " + str(count_runs-1));
+        //trial_count = 0;
+        //}
         }
         break;
        
@@ -311,7 +305,15 @@ class DataProcessing_User {
         
         count_runs++;
         println("# runs so far: " + count_runs);
-        if(count_runs > 5) {
+        //if(count_runs > 5) {
+        //  println("Saving Data");
+        //  saveData();
+        //  int[] data_index = new int[4];
+        //  trial_count = 0;
+        //  count_runs = 0;
+        //  println("In save data");
+        //}
+         if(count_runs > 1) {
           println("Saving Data");
           saveData();
           int[] data_index = new int[4];
@@ -712,22 +714,12 @@ class DataProcessing_User {
      //1) Read from text file?
      //2) Store in Data array
      //3) Or, you can try storing directly when initialized (meaning this function isn't needed).
-     float[] CompData_chan0 = new float[240];
-     boolean[] Target_chan0 = new boolean[240];
-     float[] time_chan0 = new float[240];
+     float[] CompData_chan0 = new float[96];
+     boolean[] Target_chan0 = new boolean[96];
      
-     float[] CompData_chan1 = new float[240];
-     boolean[] Target_chan1 = new boolean[240];
-     float[] time_chan1 = new float[240];
-     
-     float[] CompData_chan2 = new float[240];
-     boolean[] Target_chan2 = new boolean[240];
-     float[] time_chan2 = new float[240];
-     
-     float[] CompData_chan3 = new float[240];
-     boolean[] Target_chan3 = new boolean[240];
-     float[] time_chan3 = new float[240];
-     
+     float[] CompData_chan1 = new float[96];
+     boolean[] Target_chan1 = new boolean[96];
+    
      //float[] CompData_chan4 = new float[200];
      //boolean[] Target_chan4 = new boolean[200];
      //float[] time_chan4 = new float[200];
@@ -745,7 +737,7 @@ class DataProcessing_User {
      //float[] time_chan7 = new float[200];
      
      reader = createReader("Bradclassification80%accuracy.txt");
-     for(int sample_position = 0; sample_position < 240; sample_position++) {
+     for(int sample_position = 0; sample_position < 96; sample_position++) {
        try {
          line = reader.readLine();
        } catch(IOException e) {
@@ -761,33 +753,6 @@ class DataProcessing_User {
          Target_chan0[sample_position] = boolean(pieces[1]); //This (target_chan) just lets us know whether the stuff we are comparing to was a target or not.
          CompData_chan1[sample_position] = float(pieces[2])*factor;
          Target_chan1[sample_position] = boolean(pieces[3]);
-         CompData_chan2[sample_position] = float(pieces[4])*factor;
-         Target_chan2[sample_position] = boolean(pieces[5]);
-         CompData_chan3[sample_position] = float(pieces[6])*factor;
-         Target_chan3[sample_position] = boolean(pieces[7]);
-         
-         //CompData_chan4[sample_position] = float(pieces[8]); //CompData specifies the amplitude axis.
-         //Target_chan4[sample_position] = boolean(pieces[9]); //This (target_chan) just lets us know whether the stuff we are comparing to was a target or not.
-         //CompData_chan5[sample_position] = float(pieces[10]);
-         //Target_chan5[sample_position] = boolean(pieces[11]); //If you also try to include these channels, make sure you change time_chans at the bottom
-         //CompData_chan6[sample_position] = float(pieces[12]);
-         //Target_chan6[sample_position] = boolean(pieces[13]);
-         //CompData_chan7[sample_position] = float(pieces[14]);
-         //Target_chan7[sample_position] = boolean(pieces[15]);
-         
-         time_chan0[sample_position] = float(pieces[8]); //This (time_chan) specifies the time at which the sample was taken.
-         time_chan1[sample_position] = float(pieces[9]); //These are for four channels.
-         time_chan2[sample_position] = float(pieces[10]);
-         time_chan3[sample_position] = float(pieces[11]);
-         
-         //time_chan0[sample_position] = float(pieces[16]); //This (time_chan) specifies the time at which the sample was taken.
-         //time_chan1[sample_position] = float(pieces[17]); //These are for four channels.
-         //time_chan2[sample_position] = float(pieces[18]);
-         //time_chan3[sample_position] = float(pieces[19]);
-         //time_chan4[sample_position] = float(pieces[20]); //This (time_chan) specifies the time at which the sample was taken.
-         //time_chan5[sample_position] = float(pieces[21]); //These are for eight channels.
-         //time_chan6[sample_position] = float(pieces[22]);
-         //time_chan7[sample_position] = float(pieces[23]);
          
        }
      }
@@ -796,10 +761,10 @@ class DataProcessing_User {
        for(int letter_index = 0; letter_index < 5; letter_index++) { //Letter index is less than 5 because we use 5 letters. We can change it later on to include a certain amount of letters, and use that as a constant.
          for (int sample_position = 0; sample_position < SAMPLE_SIZE; sample_position++) { //Change to match the amount of samples.
            //Note: rather than sending in time, it is much easier to send in the sample and calculate the time in the KNN algorithm, though we can change it later.
-           Letter_count[letter_index] += KNNAlgorithm1(CompData_chan0, time_chan0, Target_chan0, (factor*rms1[sample_position][0][letter_index]/NUM_OF_TRIALS), sample_position);
-           Letter_count[letter_index] += KNNAlgorithm1(CompData_chan1, time_chan1, Target_chan1, (factor*rms1[sample_position][1][letter_index]/NUM_OF_TRIALS), sample_position);
-           Letter_count[letter_index] += KNNAlgorithm1(CompData_chan2, time_chan2, Target_chan2, (factor*rms1[sample_position][2][letter_index]/NUM_OF_TRIALS), sample_position);
-           Letter_count[letter_index] += KNNAlgorithm1(CompData_chan3, time_chan3, Target_chan3, (factor*rms1[sample_position][3][letter_index]/NUM_OF_TRIALS), sample_position);
+           Letter_count[letter_index] += KNNAlgorithm(CompData_chan0, Target_chan0, (factor*rms1[sample_position][0][letter_index]/NUM_OF_TRIALS), sample_position);
+           Letter_count[letter_index] += KNNAlgorithm(CompData_chan1, Target_chan1, (factor*rms1[sample_position][1][letter_index]/NUM_OF_TRIALS), sample_position);
+           //Letter_count[letter_index] += KNNAlgorithm1(CompData_chan2, time_chan2, Target_chan2, (factor*rms1[sample_position][2][letter_index]/NUM_OF_TRIALS), sample_position);
+           //Letter_count[letter_index] += KNNAlgorithm1(CompData_chan3, time_chan3, Target_chan3, (factor*rms1[sample_position][3][letter_index]/NUM_OF_TRIALS), sample_position);
            
            //Letter_count[letter_index] += KNNAlgorithm(CompData_chan4, time_chan4, Target_chan4, (Time_Data[sample_position][4][letter_index]/NUM_OF_TRIALS), sample_position);
            //Letter_count[letter_index] += KNNAlgorithm(CompData_chan5, time_chan5, Target_chan5, (Time_Data[sample_position][5][letter_index]/NUM_OF_TRIALS), sample_position);
@@ -810,9 +775,25 @@ class DataProcessing_User {
        for (int letter_index = 0; letter_index < 5; letter_index++) {
          println("Hitcount for letter " + letter_index + " is " + Letter_count[letter_index]);
        }
-       int chosenletter = findLettertoDetectSNR(Letter_count);
-       println("Index chosen is " + chosenletter);
-       VoiceCommand(chosenletter);
+       int max_hitcount = findMaxHits(Letter_count); //Find highest hit count.
+       float temprms = 0; //Used to compare to the max value of rms to see if it's larger. If larger, then we will set it to be the maxrms (and set the maxindex with it as well).
+       float maxrms = 0; //Max value of rms. This max value will be judged to eventually find the letter with the highest rms. It will be selected as our desired letter.
+       int maxindex = 0; //Will be initialized after it enters the if statements (in the case that there is one highest, maxindex will be initialized and nothing else will happen.
+       for(int p = 0; p < 5; p++) {
+         if (Letter_count[p] == max_hitcount) { //If the hits of that letter equal the max # of hit counts, then we will check conditions in here.
+           for(int sample_position = 0; sample_position < SAMPLE_SIZE; sample_position++) {
+             temprms += (factor*rms1[sample_position][0][p]) + (factor*rms1[sample_position][1][p]);
+           }
+           temprms = temprms/SAMPLE_SIZE;
+           println("Total max rms of " + temprms + " for letter index " + p);
+           if(temprms >  maxrms) { //Set the new maxrms and letter index with the highest rms value.
+             maxrms = temprms;
+             maxindex = p;
+           }
+         }
+       }
+       println("Index chosen is " + maxindex);
+       VoiceCommand(maxindex);
        println("Done with loadTestData");
        //Time_Data = new float[125][4][5]; //Clear Time_Data.
         println("rms test from letter D #: " + (rms1[5][0][3]/NUM_OF_TRIALS));
@@ -826,10 +807,11 @@ class DataProcessing_User {
    //Original SaveData
    void saveData1() {
      PrintWriter output;
+     float factor = 1000f;
      output = createWriter("classify.txt");
-       for(int data_position = 0; data_position < 240; data_position++) { //Up to 200, that is the amount of samples stored in the text file.
+       for(int data_position = 0; data_position < 96; data_position++) { //Up to 200, that is the amount of samples stored in the text file.
          //print data for each sample (of each channel) on the same line. The way it is stored in the file.
-         output.println(Stored_Data[0][data_position] + " " + TargetOrNot[0][data_position] + " " + Stored_Data[1][data_position] + " " + TargetOrNot[1][data_position] + " " + Stored_Data[2][data_position] + " " + TargetOrNot[2][data_position] + " " + Stored_Data[3][data_position] + " " + TargetOrNot[3][data_position] + " " + Time[0][data_position] + " " + Time[1][data_position] + " " + Time[2][data_position] + " " + Time[3][data_position]);  
+         output.println(factor*Stored_Data[0][data_position] + " " + TargetOrNot[0][data_position] + " " + factor*Stored_Data[1][data_position] + " " + TargetOrNot[1][data_position]);  
          //output.println(Stored_Data[0][data_position] + " " + TargetOrNot[0][data_position] + " " + Stored_Data[1][data_position] + " " + TargetOrNot[1][data_position] + " " + Stored_Data[2][data_position] + " " + TargetOrNot[2][data_position] + " " + Stored_Data[3][data_position] + " " + TargetOrNot[3][data_position] + " " + Stored_Data[4][data_position] + " " + TargetOrNot[4][data_position] + " " + Stored_Data[5][data_position] + " " + TargetOrNot[5][data_position] + " " + Stored_Data[6][data_position] + " " + TargetOrNot[6][data_position] + " " + Stored_Data[7][data_position] + " " + TargetOrNot[7][data_position] + " " + Time[0][data_position] + " " + Time[1][data_position] + " " + Time[2][data_position] + " " + Time[3][data_position] + " " + Time[4][data_position] + " " + Time[5][data_position] + " " + Time[6][data_position] + " " + Time[7][data_position]);  
        }
      output.flush();

@@ -52,7 +52,7 @@ class W_P300Speller extends Widget {
   private int target_character_index = 0;
   private int target_index_variable = 0;
   private int class_runs = 0;
-  public final int MAX_RUNS = 5;
+  public final int MAX_RUNS = 1;
   public boolean classification = false; //Classify the signal
   public int[] target_indices;
   W_P300Speller(PApplet _parent){
