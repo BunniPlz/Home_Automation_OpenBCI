@@ -28,11 +28,16 @@ W_AnalogRead w_analogRead;
 W_DigitalRead w_digitalRead;
 W_MarkerMode w_markermode;
 W_P300Speller w_p300speller;
+W_SilentSpeech w_silentspeech;
 
 
 //ADD YOUR WIDGET TO WIDGETS OF WIDGETMANAGER
 void setupWidgets(PApplet _this, ArrayList<Widget> w){
   // println("  setupWidgets start -- " + millis());
+
+  w_silentspeech = new W_SilentSpeech(_this);
+  w_silentspeech.setTitle("Silent Speech");
+  addWidget(w_silentspeech, w);
 
   w_timeSeries = new W_timeSeries(_this);
   w_timeSeries.setTitle("Time Series");
@@ -177,7 +182,8 @@ class WidgetManager{
       currentContainerLayout = 1;
       setNewContainerLayout(currentContainerLayout); //sets and fills layout with widgets in order of widget index, to reorganize widget index, reorder the creation in setupWidgets()
     } else {
-      currentContainerLayout = 4; //default layout ... tall container left and 2 shorter containers stacked on the right
+      //currentContainerLayout = 4; //default layout ... tall container left and 2 shorter containers stacked on the right
+      currentContainerLayout = 7;  //top half wide, bottom half 2 small containers left and right
       setNewContainerLayout(currentContainerLayout); //sets and fills layout with widgets in order of widget index, to reorganize widget index, reorder the creation in setupWidgets()
     }
 
